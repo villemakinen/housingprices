@@ -3,7 +3,7 @@
 
 library(extraDistr)
 
-setwd('/home/asdf/Desktop/gradu/cleaned code/model 1 simple regression/')
+setwd('/home/asdf/Desktop/gradu/git/housingprices/model 1 simple regression/')
 
 rm(list=ls()); gc(); 
 
@@ -113,9 +113,9 @@ fakeData <- data.frame(Price = Price.fakeData,
 # fitting the model 
 
 library(rstan)
-completePoolingModel <- stan_model(file = 'model1.stan'); 
+model1.stanObj <- stan_model(file = 'model1.stan'); 
 
-stanFit.fakeData <- sampling(object = completePoolingModel, 
+stanFit.fakeData <- sampling(object = model1.stanObj, 
                              data = list(N = nrow(fakeData), 
                                          Price = fakeData$Price, 
                                          Sqm = fakeData$Sqm,
@@ -144,7 +144,7 @@ testSetIndeces <- sample(1:nrow(combinedData), round(0.3*nrow(combinedData)), re
 estimationSet <- combinedData[-testSetIndeces,]
 testSet <- combinedData[testSetIndeces,]
 
-stanFit.trueData <- sampling(object = completePoolingModel, 
+stanFit.trueData <- sampling(object = model1.stanObj, 
                          data = list(N = nrow(estimationSet), 
                                      Price = estimationSet$Price, 
                                      Sqm = estimationSet$Sqm,
@@ -159,7 +159,7 @@ stanFit.trueData <- sampling(object = completePoolingModel,
                          cores = 4,
                          seed = 1234,
                          control = list(max_treedepth = 15))
-save.image("modelFit.RData")
+# save.image("modelFit.RData")
 
 print(stanFit.trueData)
 plot(stanFit.trueData)

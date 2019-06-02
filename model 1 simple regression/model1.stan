@@ -32,9 +32,11 @@ model {
   // EV calculations 
   vector[N] mu;
   
-  for ( i in 1:N ) {
+  /*for ( i in 1:N ) {
     mu[i] = Intercept_coef + Sqm_coef*Sqm[i] + CondGoodDummySqm_coef*CondGoodDummySqm[i] + Age_coef*Age[i] + TwoRoomsDummy_coef*TwoRoomsDummy[i] + ThreeRoomsDummy_coef*ThreeRoomsDummy[i] + FourRoomsOrMoreDummy_coef*FourRoomsOrMoreDummy[i] + OwnFloor_coef*OwnFloor[i] + SaunaDummy_coef*SaunaDummy[i];
-  }
+  }*/
+  
+  mu = Intercept_coef + Sqm_coef*Sqm + CondGoodDummySqm_coef*CondGoodDummySqm + Age_coef*Age + TwoRoomsDummy_coef*TwoRoomsDummy + ThreeRoomsDummy_coef*ThreeRoomsDummy + FourRoomsOrMoreDummy_coef*FourRoomsOrMoreDummy + OwnFloor_coef*OwnFloor + SaunaDummy_coef*SaunaDummy;
   
   // priors
   Intercept_coef ~ normal(70000, 50000);

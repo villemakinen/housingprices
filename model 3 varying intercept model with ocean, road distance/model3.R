@@ -3,7 +3,7 @@
 
 library(extraDistr)
 
-setwd('/home/asdf/Desktop/gradu/cleaned code/model 3 varying intercept model with ocean, road distance/')
+setwd('/home/asdf/Desktop/gradu/git/housingprices/model 3 varying intercept model with ocean, road distance/')
 
 rm(list=ls()); gc(); 
 
@@ -132,9 +132,9 @@ fakeData <- data.frame(Price = Price.fakeData,
 # fitting the model 
 
 library(rstan)
-model3 <- stan_model(file = 'model3.stan');
+model3.stanObj <- stan_model(file = 'model3.stan');
 
-stanFit.fakeData <- sampling(object = model3, 
+stanFit.fakeData <- sampling(object = model3.stanObj, 
                              data = list(N = nrow(fakeData), 
                                          N_neighborhood = nrow(distanceData),
                                          OceanDistance = distanceData$oceanDistance, 
@@ -197,7 +197,7 @@ testSetIndeces <- sample(1:nrow(combinedData.orig), round(0.3*nrow(combinedData.
 estimationSet <- combinedData[-testSetIndeces,]
 testSet <- combinedData[testSetIndeces,]
 
-stanFit.trueData <- sampling(object = model3, 
+stanFit.trueData <- sampling(object = model3.stanObj, 
                              data = list(N = nrow(estimationSet), 
                                          N_neighborhood = nrow(distanceData),
                                          OceanDistance = distanceData$oceanDistance, 
@@ -221,7 +221,7 @@ stanFit.trueData <- sampling(object = model3,
 print(stanFit.trueData)
 traceplot(stanFit.trueData)
 
-save.image("modelFit.RData")
+# save.image("modelFit.RData")
 
 posteriorSamples.trueData <- as.matrix(stanFit.trueData)
 

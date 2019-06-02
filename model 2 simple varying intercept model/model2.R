@@ -4,7 +4,7 @@
 
 library(extraDistr)
 
-setwd('/home/asdf/Desktop/gradu/cleaned code/model 2 simple varying intercept model/')
+setwd('/home/asdf/Desktop/gradu/git/housingprices/model 2 simple varying intercept model/')
 
 rm(list=ls()); gc(); 
 
@@ -111,9 +111,9 @@ fakeData <- data.frame(Price = Price.fakeData,
 # fitting the model 
 
 library(rstan)
-model2 <- stan_model(file = 'model2.stan'); 
+model2.stanObj <- stan_model(file = 'model 2 simple varying intercept model/model2.stan'); 
 
-stanFit.fakeData <- sampling(object = model2, 
+stanFit.fakeData <- sampling(object = model2.stanObj, 
                              data = list(N = nrow(fakeData), 
                                          N_neighborhood = numberOfGroups,
                                          Price = fakeData$Price, 
@@ -147,7 +147,7 @@ testSetIndeces <- sample(1:nrow(combinedData), round(0.3*nrow(combinedData)), re
 estimationSet <- combinedData[-testSetIndeces,]
 testSet <- combinedData[testSetIndeces,]
 
-stanFit.trueData <- sampling(object = model2, 
+stanFit.trueData <- sampling(object = model2.stanObj, 
                              data = list(N = nrow(estimationSet), 
                                          N_neighborhood = max(combinedData$NeighborhoodAssignment),
                                          Price = estimationSet$Price, 
@@ -164,7 +164,7 @@ stanFit.trueData <- sampling(object = model2,
                              cores = 4,
                              seed = 1234,
                              control = list(max_treedepth = 15))
-save.image("modelFit.RData")
+# save.image("modelFit.RData")
 
 print(stanFit.trueData)
 print(stanFit.trueData, pars = c("Sqm_coef", "CondGoodDummySqm_coef", "Age_coef", "TwoRoomsDummy_coef", "ThreeRoomsDummy_coef", "FourRoomsOrMoreDummy_coef", "OwnFloor_coef", "SaunaDummy_coef", "sigma", "nu", "mu_pop", "sigma_pop"))
