@@ -209,29 +209,12 @@ summary(stanFit.fakeData)
 plot(stanFit.fakeData)
 traceplot(stanFit.fakeData)
 
-pairs(stanFit.fakeData@sim$samples)
-
-str(stanFit.fakeData@sim$samples[1])
-attr(stanFit.fakeData@sim$samples[1][[1]], "sampler_params"); 
-
-energyVec <- attr(stanFit.fakeData@sim$samples[1][[1]], "sampler_params")$energy
-
-k <- 16; 
-coefEstimate <- stanFit.fakeData@sim$samples[1][[1]][[k]]
-cat(names(stanFit.fakeData@sim$samples[1][[1]])[k], "\n"); 
-plot(energyVec, coefEstimate)
-
-# 1: There were 4 chains where the estimated Bayesian Fraction of Missing Information was low. See http://mc-stan.org/misc/warnings.html#bfmi-low 
-pairs(stanFit.fakeData)
-
-################################3
-
 posteriorSamples.fakeData <- as.matrix(stanFit.fakeData)
 
 colnames(posteriorSamples.fakeData)
 
-trueValues <- c(Sqm_coef, CondGoodDummySqm_coef, Age_coef, TwoRoomsDummy_coef, ThreeRoomsDummy_coef, FourRoomsOrMoreDummy_coef, OwnFloor_coef, SaunaDummy_coef, sigma, nu, rhosq, etasq)
-names(trueValues) <- c("Sqm_coef", "CondGoodDummySqm_coef", "Age_coef", "TwoRoomsDummy_coef", "ThreeRoomsDummy_coef", "FourRoomsOrMoreDummy_coef", "OwnFloor_coef", "SaunaDummy_coef", "sigma", "nu", "rhosq", "etasq")
+trueValues <- c(Sqm_coef, CondGoodDummySqm_coef, Age_coef, TwoRoomsDummy_coef, ThreeRoomsDummy_coef, FourRoomsOrMoreDummy_coef, SaunaDummy_coef, OwnFloor_coef, sigma, nu, etasq, rhosq)
+names(trueValues) <- c("Sqm_coef", "CondGoodDummySqm_coef", "Age_coef", "TwoRoomsDummy_coef", "ThreeRoomsDummy_coef", "FourRoomsOrMoreDummy_coef", "SaunaDummy_coef", "OwnFloor_coef",  "sigma", "nu", "etasq", "rhosq")
 
 for(k in 1:length(trueValues)) {
   hist(posteriorSamples.fakeData[,k], main = colnames(posteriorSamples.fakeData)[k])
