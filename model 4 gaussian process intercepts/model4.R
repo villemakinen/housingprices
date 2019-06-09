@@ -93,7 +93,6 @@ TwoRoomsDummy.fakeData <- 1*(NumberOfRooms.fakeData == 2);
 ThreeRoomsDummy.fakeData <- 1*(NumberOfRooms.fakeData == 3);
 FourRoomsOrMoreDummy.fakeData <- 1*(NumberOfRooms.fakeData >= 4);
 
-
 # priors 
 Sqm_coef <- rnorm(n = 1, mean = 6000, sd = 3e3);
 CondGoodDummySqm_coef <- rnorm(n = 1, mean = 1e3, sd = 1.5e3);
@@ -104,17 +103,15 @@ FourRoomsOrMoreDummy_coef <- rnorm(n = 1, mean = 7.5e3, sd = 1e4);
 SaunaDummy_coef <- rnorm(n = 1, mean = 5e3, sd = 2.5e3);
 OwnFloor_coef <- rnorm(n = 1, mean = 1e3, sd = 1e3); 
 
-sigma <- 10000 + rhcauchy(1, 1000);
-
 # covariance matrix for intercept draws
 N_Neighborhoods <- nrow(limitedDistanceMatrix)
 
 covarianceMatrix <- matrix(0, nrow = nrow(limitedDistanceMatrix), ncol = ncol(limitedDistanceMatrix))
 
 rhosq <- rhcauchy(n = 1, 1);
-etasq <- rhcauchy(n = 1, 10000^2)
+etasq <- rhcauchy(n = 1, 300)
 
-sigmaInterceptDiag <- 50000 + rhcauchy(1, 100000);
+# sigmaInterceptDiag <- 50000 + rhcauchy(1, 1000000);
 
 for(k in 1:(nrow(covarianceMatrix)-1)) {
   for(l in (k+1):ncol(covarianceMatrix)) {
@@ -125,7 +122,8 @@ for(k in 1:(nrow(covarianceMatrix)-1)) {
 }
 
 for ( k in 1:ncol(covarianceMatrix) ) {
-  covarianceMatrix[k,k] = etasq + sigmaInterceptDiag;
+  # covarianceMatrix[k,k] = etasq + sigmaInterceptDiag;
+  covarianceMatrix[k,k] = etasq + 0.01;
 }
 
 # drawing group assignments
@@ -139,18 +137,25 @@ groupAssignments <- sample(groupNames, size = nFakeObs, replace = T, prob = grou
 
 library(MASS)
 
-interceptEv <- 70000; 
-groupIntercepts <- mvrnorm(n = 1, mu = rep(interceptEv, length(groupNames)), Sigma = covarianceMatrix);
-groupIntercepts
+interceptEv <- 70; 
+groupIntercepts.unscaled <- mvrnorm(n = 1, mu = rep(interceptEv, length(groupNames)), Sigma = covarianceMatrix);
+groupIntercepts.unscaled
 
-Price.fakeData <- groupIntercepts[groupAssignments] + 
+groupIntercepts <- groupIntercepts.unscaled*1000;  
+
+EV.fakeData <- groupIntercepts[groupAssignments] + 
   TwoRoomsDummy_coef*TwoRoomsDummy.fakeData + 
   ThreeRoomsDummy_coef*ThreeRoomsDummy.fakeData + 
   FourRoomsOrMoreDummy_coef*FourRoomsOrMoreDummy.fakeData + 
   (Sqm_coef + CondGoodDummySqm_coef*ConditionGoodDummy.fakeData)*SquareMeters.fakeData +  
   Age_coef*AgeOfTheBuilding.fakeData + 
   SaunaDummy_coef*SaunaDummy.fakeData + 
-  OwnFloor_coef*ownFloor.fixed.fakeData + rnorm(nFakeObs, 0, sd = sigma);
+  OwnFloor_coef*ownFloor.fixed.fakeData;
+
+
+sigma <- 10000 + rhcauchy(1, 5000); 
+nu <- rgamma(1, shape = 2, rate = 0.1)
+Price.fakeData <- EV.fakeData + sigma*rt(n = length(EV.fakeData), df = nu);
 
 par(mfrow=c(1,2)); 
 hist(Price.fakeData)
@@ -197,7 +202,7 @@ stanFit.fakeData <- sampling(object = model4.stanObj,
                                          NeighborhoodAssignment = estimationFakeData$Group,
                                          Dmat = limitedDistanceMatrix
                              ),
-                             iter = 4000, verbose = T, cores = 4, chains = 4, control = list(max_treedepth = 15, adapt.delta = 0.95))
+                             iter = 2000, verbose = T, cores = 2, chains = 4)
 
 print(stanFit.fakeData)
 summary(stanFit.fakeData)
@@ -216,8 +221,77 @@ coefEstimate <- stanFit.fakeData@sim$samples[1][[1]][[k]]
 cat(names(stanFit.fakeData@sim$samples[1][[1]])[k], "\n"); 
 plot(energyVec, coefEstimate)
 
-
-
-
 # 1: There were 4 chains where the estimated Bayesian Fraction of Missing Information was low. See http://mc-stan.org/misc/warnings.html#bfmi-low 
 pairs(stanFit.fakeData)
+
+################################3
+
+posteriorSamples.fakeData <- as.matrix(stanFit.fakeData)
+
+colnames(posteriorSamples.fakeData)
+
+trueValues <- c(Sqm_coef, CondGoodDummySqm_coef, Age_coef, TwoRoomsDummy_coef, ThreeRoomsDummy_coef, FourRoomsOrMoreDummy_coef, OwnFloor_coef, SaunaDummy_coef, sigma, nu, rhosq, etasq)
+names(trueValues) <- c("Sqm_coef", "CondGoodDummySqm_coef", "Age_coef", "TwoRoomsDummy_coef", "ThreeRoomsDummy_coef", "FourRoomsOrMoreDummy_coef", "OwnFloor_coef", "SaunaDummy_coef", "sigma", "nu", "rhosq", "etasq")
+
+for(k in 1:length(trueValues)) {
+  hist(posteriorSamples.fakeData[,k], main = colnames(posteriorSamples.fakeData)[k])
+  cat("parameter", names(trueValues)[k], "value", trueValues[k], "\n")
+  abline(v = trueValues[k], col = 'red', lty = 2, lwd = 2)
+  checkEnd <- readline(prompt = "q to end: "); 
+  
+  if(checkEnd == 'q') {
+    break; 
+  }
+}
+
+# for(k in 3187:(3187 + 171)) {
+#   hist(posteriorSamples.fakeData[,k], main = colnames(posteriorSamples.fakeData)[k])
+#   abline(v = groupIntercepts[k - 3186], col = 'red', lty = 2, lwd = 2)
+#   checkEnd <- readline(prompt = "q to end: "); 
+#   
+#   if(checkEnd == 'q') {
+#     break; 
+#   }
+# }
+
+
+# checking loo statistics
+library(loo)
+looObj.fakeData <- loo(stanFit.fakeData)
+looObj.fakeData
+
+# true data
+set.seed(123); 
+testSetIndeces <- sample(1:nrow(combinedData.orig), round(0.3*nrow(combinedData.orig)), replace = F)
+
+estimationSet <- combinedData[-testSetIndeces,]
+testSet <- combinedData[testSetIndeces,]
+
+stanFit.trueData <- sampling(object = model3.stanObj, 
+                             data = list(N = nrow(estimationSet), 
+                                         N_neighborhood = nrow(distanceData),
+                                         OceanDistance = distanceData$oceanDistance, 
+                                         RoadDistance = distanceData$roadDistanceToCenter, 
+                                         Price = estimationSet$Price, 
+                                         Sqm = estimationSet$Sqm,
+                                         CondGoodDummySqm = estimationSet$CondGoodDummySqm,
+                                         Age = estimationSet$Age,
+                                         TwoRoomsDummy = estimationSet$TwoRoomsDummy,
+                                         ThreeRoomsDummy = estimationSet$ThreeRoomsDummy, 
+                                         FourRoomsOrMoreDummy = estimationSet$FourRoomsOrMoreDummy,
+                                         OwnFloor = estimationSet$OwnFloor,
+                                         SaunaDummy = estimationSet$SaunaDummy, 
+                                         NeighborhoodAssignment = estimationSet$NeighborhoodAssignment), 
+                             iter = 1000,
+                             cores = 4,
+                             # iter = 500,
+                             # cores = 4,
+                             seed = 1234,
+                             control = list(max_treedepth = 15))
+print(stanFit.trueData)
+traceplot(stanFit.trueData)
+
+# save.image("modelFit.RData")
+
+posteriorSamples.trueData <- as.matrix(stanFit.trueData)
+
