@@ -1,0 +1,30 @@
+---
+title: "Model summary"
+output: pdf_document
+---
+  
+## Model 1
+
+Priors
+
+$\beta_{\text{Intercept}} \sim \text{N}(70000, 50000) \\
+\beta_{\text{Sqm}} \sim \text{N}(4500, 1000) \\
+\beta_{\text{Sqm, Good Condition}} \sim \text{N}(1000, 1000) \\
+\beta_{\text{Age}} \sim \text{N}(-1500, 2000) \\
+\beta_{\text{TwoRoomsDummy}} \sim \text{N}(5000, 10000) \\
+\beta_{\text{ThreeRoomsDummy}} \sim \text{N}(7500, 10000) \\
+\beta_{\text{FourRoomsOrMoreDummy}} \sim \text{N}(7500, 10000) \\
+\beta_{\text{OwnFloor}} \sim \text{N}(7000, 1000) \\
+\beta_{\text{SaunaDummy}} \sim \text{N}(5000, 2500) \\
+\sigma \sim \text{Half-Cauchy}(10000, 5000) \\
+\nu \sim \text{Gamma}(2, 0.1)$
+
+rest TBA
+
+## Model 2 
+
+TBA
+
+## Model 3
+
+TBA

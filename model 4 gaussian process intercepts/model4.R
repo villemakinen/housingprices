@@ -70,7 +70,7 @@ shuffleOrder <- order(as.numeric(rownames(limitedDistanceMatrix)))
 limitedDistanceMatrix <- limitedDistanceMatrix[shuffleOrder,]
 limitedDistanceMatrix <- limitedDistanceMatrix[,shuffleOrder]
 
-# scale to kilo meters
+# scale to kilometers
 limitedDistanceMatrix <- limitedDistanceMatrix/1000;
 
 ############################
@@ -153,7 +153,9 @@ EV.fakeData <- groupIntercepts[groupAssignments] +
   OwnFloor_coef*ownFloor.fixed.fakeData;
 
 
-sigma <- 10000 + rhcauchy(1, 5000); 
+# sigma <- 10000 + rhcauchy(1, 5000);
+sigma <- rhcauchy(1, 15000); 
+
 nu <- rgamma(1, shape = 2, rate = 0.1)
 Price.fakeData <- EV.fakeData + sigma*rt(n = length(EV.fakeData), df = nu);
 
@@ -200,8 +202,7 @@ stanFit.fakeData <- sampling(object = model4.stanObj,
                                          OwnFloor = estimationFakeData$OwnFloor,
                                          SaunaDummy = estimationFakeData$SaunaDummy,
                                          NeighborhoodAssignment = estimationFakeData$Group,
-                                         Dmat = limitedDistanceMatrix
-                             ),
+                                         Dmat = limitedDistanceMatrix),
                              iter = 2000, verbose = T, cores = 2, chains = 4)
 
 print(stanFit.fakeData)
@@ -227,21 +228,23 @@ for(k in 1:length(trueValues)) {
   }
 }
 
-# for(k in 3187:(3187 + 171)) {
-#   hist(posteriorSamples.fakeData[,k], main = colnames(posteriorSamples.fakeData)[k])
-#   abline(v = groupIntercepts[k - 3186], col = 'red', lty = 2, lwd = 2)
-#   checkEnd <- readline(prompt = "q to end: "); 
-#   
-#   if(checkEnd == 'q') {
-#     break; 
-#   }
-# }
+for(k in 13:(13 + 127)) {
+  hist(posteriorSamples.fakeData[,k], main = colnames(posteriorSamples.fakeData)[k])
+  abline(v = groupIntercepts.unscaled[k - 12], col = 'red', lty = 2, lwd = 2)
+  checkEnd <- readline(prompt = "q to end: ");
+
+  if(checkEnd == 'q') {
+    break;
+  }
+}
 
 
 # checking loo statistics
 library(loo)
 looObj.fakeData <- loo(stanFit.fakeData)
 looObj.fakeData
+
+############################################################################################
 
 # true data
 set.seed(123); 
@@ -250,31 +253,126 @@ testSetIndeces <- sample(1:nrow(combinedData.orig), round(0.3*nrow(combinedData.
 estimationSet <- combinedData[-testSetIndeces,]
 testSet <- combinedData[testSetIndeces,]
 
-stanFit.trueData <- sampling(object = model3.stanObj, 
+stanFit.trueData <- sampling(object = model4.stanObj, 
                              data = list(N = nrow(estimationSet), 
-                                         N_neighborhood = nrow(distanceData),
-                                         OceanDistance = distanceData$oceanDistance, 
-                                         RoadDistance = distanceData$roadDistanceToCenter, 
+                                         N_neighborhood = nrow(limitedDistanceMatrix),
                                          Price = estimationSet$Price, 
                                          Sqm = estimationSet$Sqm,
-                                         CondGoodDummySqm = estimationSet$CondGoodDummySqm,
+                                         CondGoodDummySqm = estimationSet$CondGoodDummy*estimationSet$Sqm,
                                          Age = estimationSet$Age,
                                          TwoRoomsDummy = estimationSet$TwoRoomsDummy,
                                          ThreeRoomsDummy = estimationSet$ThreeRoomsDummy, 
                                          FourRoomsOrMoreDummy = estimationSet$FourRoomsOrMoreDummy,
                                          OwnFloor = estimationSet$OwnFloor,
-                                         SaunaDummy = estimationSet$SaunaDummy, 
-                                         NeighborhoodAssignment = estimationSet$NeighborhoodAssignment), 
-                             iter = 1000,
+                                         SaunaDummy = estimationSet$SaunaDummy,
+                                         NeighborhoodAssignment = estimationSet$NeighborhoodId,
+                                         Dmat = limitedDistanceMatrix),
+                             iter = 4000,
                              cores = 4,
-                             # iter = 500,
-                             # cores = 4,
-                             seed = 1234,
-                             control = list(max_treedepth = 15))
+                             chains = 4,
+                             seed = 1234)
 print(stanFit.trueData)
 traceplot(stanFit.trueData)
 
 # save.image("modelFit.RData")
 
 posteriorSamples.trueData <- as.matrix(stanFit.trueData)
+
+# checking loo statistics
+looObj.trueData <- loo(stanFit.trueData)
+looObj.trueData
+
+interceptEstimateDraws <- posteriorSamples.trueData[, grep("interceptsUnscaled", colnames(posteriorSamples.trueData))] 
+interceptEstimateMeans <- colMeans(interceptEstimateDraws)
+
+
+getPosteriorPredictiveDraws <- function(dataSet, 
+                                        postSample, 
+                                        likelihoodSigmaName, 
+                                        likelihoodNuName) {
+  # group intercepts 
+  coefDraws <- postSample[,grep("_coef",colnames(postSample))]
+  muData <- dataSet[,substr(colnames(coefDraws), 1, nchar(colnames(coefDraws))-5)]; 
+  nonInterceptPredictorContribution <- as.matrix(muData) %*% t(as.matrix(coefDraws))
+  
+  # adding the intercepts
+  interceptEstimateDraws <- postSample[,grep("intercepts\\[",colnames(postSample))]
+  interceptContribution <- t(interceptEstimateDraws[,dataSet$NeighborhoodId])
+  
+  # final parameters
+  muEstimateDraws <- nonInterceptPredictorContribution + interceptContribution; 
+  
+  sigmaEstimateDraws <- postSample[,likelihoodSigmaName];
+  nuEstimateDraws <- postSample[,likelihoodNuName];
+  
+  # sample draw
+  predictiveDraws <- apply(muEstimateDraws, 1, function(x) {x + sigmaEstimateDraws*rt(n = length(x), df = nuEstimateDraws)})
+  
+  return(predictiveDraws)
+}
+
+
+# estimation set means
+postPredDistDraws.estimation <- getPosteriorPredictiveDraws(dataSet = estimationSet, 
+                                                            postSample = posteriorSamples.trueData, 
+                                                            likelihoodSigmaName = "sigma", 
+                                                            likelihoodNuName = "nu")
+
+predDistMean.estimation <- apply(postPredDistDraws.estimation, MARGIN = 2, mean)
+
+plot(estimationSet$Price, predDistMean.estimation)
+abline(a = 0, b = 1, lty = 2, col = 'red')
+
+
+# test set means 
+postPredDistDraws.test <- getPosteriorPredictiveDraws(dataSet = testSet, 
+                                                      postSample = posteriorSamples.trueData, 
+                                                      likelihoodSigmaName = "sigma", 
+                                                      likelihoodNuName = "nu")
+
+predDistMean.test <- apply(postPredDistDraws.test, MARGIN = 2, mean)
+
+plot(testSet$Price, predDistMean.test)
+abline(a = 0, b = 1, lty = 2, col = 'red')
+
+drawVariancePostSample <- function(postSample, likelihoodSigmaName, likelihoodNuName) {
+  sigmaPostSample <- postSample[,likelihoodSigmaName];
+  nuPostSample <- postSample[,likelihoodNuName];
+  
+  varSample <- (sigmaPostSample^2) * (nuPostSample/(nuPostSample-2));
+  
+  return(varSample); 
+}
+
+variancePostSample <- drawVariancePostSample(postSample = posteriorSamples.trueData, 
+                                             likelihoodSigmaName = "sigma", 
+                                             likelihoodNuName = "nu")
+hist(variancePostSample)
+summary(variancePostSample)
+
+
+largDifIndeces.test <- order(abs(testSet$Price - predDistMean.test), decreasing = T);
+
+k <- 16; 
+targetIndex <- largDifIndeces.test[k];
+hist(postPredDistDraws.test[,targetIndex], nclass = 50)
+abline(v = testSet$Price[targetIndex], col = 'red', lty = 2);
+predDistMean.test[targetIndex]
+testSet[targetIndex,]
+
+
+getBayesianR2Draws <- function(postPredictiveDistDraws, residualVarianceDraws) {
+  # following (3) and appendix of http://www.stat.columbia.edu/~gelman/research/unpublished/bayes_R2_v3.pdf
+  var_fit <- apply(X = postPredictiveDistDraws, MARGIN = 1, FUN = var)
+  return(var_fit/(var_fit + residualVarianceDraws))
+}
+
+BayesianR2Draws <- getBayesianR2Draws(postPredictiveDistDraws = postPredDistDraws.estimation, 
+                                      residualVarianceDraws = variancePostSample);
+hist(BayesianR2Draws);
+abline(v = median(BayesianR2Draws), lty = 2, col = 'red')
+summary(BayesianR2Draws);
+
+
+
 

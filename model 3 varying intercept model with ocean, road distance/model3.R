@@ -101,7 +101,8 @@ FourRoomsOrMoreDummy_coef <- rnorm(n = 1, mean = 7.5e3, sd = 1e4);
 SaunaDummy_coef <- rnorm(n = 1, mean = 5e3, sd = 2.5e3);
 OwnFloor_coef <- rnorm(n = 1, mean = 1e3, sd = 1e3); 
 
-sigma <- 10000 + rhcauchy(1, 5000);
+# sigma <- 10000 + rhcauchy(1, 5000);
+sigma <- rhcauchy(1, 15000);
 nu <- rgamma(1, shape = 2, rate = 0.1)
 
 EV.fakeData <- groupIntercepts[groupAssignments] + 
@@ -212,7 +213,7 @@ stanFit.trueData <- sampling(object = model3.stanObj,
                                          OwnFloor = estimationSet$OwnFloor,
                                          SaunaDummy = estimationSet$SaunaDummy, 
                                          NeighborhoodAssignment = estimationSet$NeighborhoodAssignment), 
-                             iter = 1000,
+                             iter = 4000,
                              cores = 4,
                              # iter = 500,
                              # cores = 4,

@@ -111,7 +111,7 @@ fakeData <- data.frame(Price = Price.fakeData,
 # fitting the model 
 
 library(rstan)
-model2.stanObj <- stan_model(file = 'model 2 simple varying intercept model/model2.stan'); 
+model2.stanObj <- stan_model(file = 'model2.stan'); 
 
 stanFit.fakeData <- sampling(object = model2.stanObj, 
                              data = list(N = nrow(fakeData), 
@@ -161,7 +161,7 @@ stanFit.trueData <- sampling(object = model2.stanObj,
                                          SaunaDummy = estimationSet$SaunaDummy, 
                                          NeighborhoodAssignment = estimationSet$NeighborhoodAssignment), 
                              iter = 4000, 
-                             cores = 4,
+                             cores = 2,
                              seed = 1234,
                              control = list(max_treedepth = 15))
 # save.image("modelFit.RData")
