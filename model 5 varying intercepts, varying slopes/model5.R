@@ -64,6 +64,8 @@ groupDist <- groupDist/sum(groupDist);
 
 groupAssignments <- sample(x = groupNames, size = nFakeObs, replace = T, prob = groupDist)
 
+####################################################################
+# coefficient draws 
 library(rethinking); 
 library(extraDistr); 
 
@@ -120,6 +122,12 @@ fakeData <- data.frame(Price = Price.fakeData,
                        SaunaDummy = SaunaDummy.fakeData,
                        NeighborhoodAssignment = groupAssignments);
 
+estimationIndeces <- sample(1:nrow(fakeData), size = round(0.7*nrow(fakeData)))
+
+estimationFakeData <- fakeData[estimationIndeces,];
+testFakeData <- fakeData[-estimationIndeces,];
+
+
 ############################
 # estimating the model with fake data
 
@@ -127,4 +135,34 @@ library(rstan)
 
 model5.stanObj <- stan_model(file = 'model5.stan');
 
+stanFit.fakeData <- sampling(object = model5.stanObj, 
+                             data = list(N = nrow(estimationFakeData), 
+                                         N_neighborhood = numberOfGroups,
+                                         Price = estimationFakeData$Price, 
+                                         Sqm = estimationFakeData$Sqm,
+                                         CondGoodDummySqm = estimationFakeData$CondGoodDummySqm,
+                                         Age = estimationFakeData$Age,
+                                         TwoRoomsDummy = estimationFakeData$TwoRoomsDummy,
+                                         ThreeRoomsDummy = estimationFakeData$ThreeRoomsDummy, 
+                                         FourRoomsOrMoreDummy = estimationFakeData$FourRoomsOrMoreDummy,
+                                         OwnFloor = estimationFakeData$OwnFloor,
+                                         SaunaDummy = estimationFakeData$SaunaDummy,
+                                         NeighborhoodAssignment = estimationFakeData$NeighborhoodAssignment),
+                             iter = 4000, verbose = T, cores = 2, chains = 4, control = list(adapt_delta = 0.99, max_treedepth = 15))
 
+print(stanFit.fakeData)
+# summary(stanFit.fakeData)
+plot(stanFit.fakeData)
+traceplot(stanFit.fakeData)
+
+Age_coef
+TwoRoomsDummy_coef
+ThreeRoomsDummy_coef
+FourRoomsOrMoreDummy_coef
+SaunaDummy_coef
+OwnFloor_coef
+
+
+EV_betaIntercept
+EV_betaSquareMeters
+EV_betaSquareMetersGoodCond 
