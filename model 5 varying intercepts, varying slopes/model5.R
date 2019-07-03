@@ -226,7 +226,7 @@ traceplot(stanFit.trueData)
 posteriorSamples.trueData <- as.matrix(stanFit.trueData)
 
 k <- 1; 
-# k <- 3921;
+# k <- 4163; # for the varying intercept, slopes 
 while(T) {
   hist(posteriorSamples.trueData[,k], main = colnames(posteriorSamples.trueData)[k])
   readline(prompt = "traceplot next...")
@@ -250,16 +250,30 @@ looObj.trueData
 getPosteriorPredictiveDraws <- function(dataSet, postSample, likelihoodSigmaName, likelihoodNuName) {
   
   coefDraws <- postSample[,grep("_coef",colnames(postSample))]
-  coefDraws <- coefDraws[,-grep("Intercept", colnames(coefDraws))]
+  
+  coefDraws <- coefDraws[,-grep("Mu", colnames(coefDraws))]
+  coefDraws <- coefDraws[,-grep("Sigma", colnames(coefDraws))]
+  
   muData <- dataSet[,substr(colnames(coefDraws), 1, nchar(colnames(coefDraws))-5)]; 
-  nonInterceptPredictorContribution <- as.matrix(muData) %*% t(as.matrix(coefDraws))
+  nonGroupVaryingPredictorContribution <- as.matrix(muData) %*% t(as.matrix(coefDraws))
   
-  # adding the intercepts 
-  interceptEstimateDraws <- postSample[,grep("Intercept_coef",colnames(postSample))]
-  
+  # adding the effects of varying intercep  
+  interceptEstimateDraws <- postSample[,grep("VaryingSlopes\\[\\d+,1\\]", colnames(postSample))]
   interceptContribution <- t(interceptEstimateDraws[,dataSet$NeighborhoodAssignment])
   
-  muEstimateDraws <- nonInterceptPredictorContribution + interceptContribution; 
+  # adding the effects of Sqm
+  sqmCoefEstimateDraws <- postSample[,grep("VaryingSlopes\\[\\d+,2\\]", colnames(postSample))]
+  sqmData <- dataSet[,"Sqm"]; 
+  
+  sqmContribution <- sqmData*t(sqmCoefEstimateDraws[,dataSet$NeighborhoodAssignment]);
+  
+  # adding the effects of CondGoodSqm
+  condGoodSqmCoefEstimateDraws <- postSample[,grep("VaryingSlopes\\[\\d+,3\\]", colnames(postSample))]
+  condGoodSqmData <- dataSet[,"CondGoodDummySqm"]; 
+  
+  condGoodSqmContribution <-  condGoodSqmData*t(condGoodSqmCoefEstimateDraws[,dataSet$NeighborhoodAssignment]);
+  
+  muEstimateDraws <- nonGroupVaryingPredictorContribution + interceptContribution + sqmContribution + condGoodSqmContribution; 
   
   sigmaEstimateDraws <- postSample[,likelihoodSigmaName];
   nuEstimateDraws <- postSample[,likelihoodNuName];
@@ -268,6 +282,53 @@ getPosteriorPredictiveDraws <- function(dataSet, postSample, likelihoodSigmaName
   
   return(predictiveDraws)
 }
+
+
+# estimation set means
+postPredDistDraws.estimation <- getPosteriorPredictiveDraws(dataSet = estimationSet, 
+                                                            postSample = posteriorSamples.trueData, 
+                                                            likelihoodSigmaName = "sigma", 
+                                                            likelihoodNuName = "nu")
+
+predDistMean.estimation <- apply(postPredDistDraws.estimation, MARGIN = 2, mean)
+
+plot(estimationSet$Price, predDistMean.estimation)
+abline(a = 0, b = 1, lty = 2, col = 'red')
+
+# test set means 
+postPredDistDraws.test <- getPosteriorPredictiveDraws(dataSet = testSet, 
+                                                      postSample = posteriorSamples.trueData, 
+                                                      likelihoodSigmaName = "sigma", 
+                                                      likelihoodNuName = "nu")
+
+predDistMean.test <- apply(postPredDistDraws.test, MARGIN = 2, mean)
+
+plot(testSet$Price, predDistMean.test)
+abline(a = 0, b = 1, lty = 2, col = 'red')
+
+
+drawVariancePostSample <- function(postSample, likelihoodSigmaName, likelihoodNuName) {
+  sigmaPostSample <- postSample[,likelihoodSigmaName];
+  nuPostSample <- postSample[,likelihoodNuName];
+  
+  varSample <- (sigmaPostSample^2) * (nuPostSample/(nuPostSample-2));
+  
+  return(varSample); 
+}
+
+variancePostSample <- drawVariancePostSample(postSample = posteriorSamples.trueData, 
+                                             likelihoodSigmaName = "sigma", 
+                                             likelihoodNuName = "nu")
+hist(variancePostSample)
+summary(variancePostSample)
+
+largDifIndeces.test <- order(abs(testSet$Price - predDistMean.test), decreasing = T);
+
+
+k <- 151; 
+targetIndex <- largDifIndeces.test[k];
+hist(postPredDistDraws.test[,targetIndex], nclass = 50)
+abline(v = testSet$Price[targetIndex], col = 'red', lty = 2);
 
 
 
