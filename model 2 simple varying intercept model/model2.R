@@ -38,7 +38,7 @@ set.seed(123)
 SquareMeters.fakeData <- rgamma(n = nFakeObs, shape = 67^2/1073, rate = 67/1073)
 AgeOfTheBuilding.fakeData <- rnbinom(nFakeObs, size = 2, prob = 41/850)
 SaunaDummy.fakeData <- sample(0:1, nFakeObs, prob = table(combinedData$SaunaDummy)/nrow(combinedData), replace = T)
-ownFloor.fixed.fakeData <- rpois(n = nFakeObs, lambda = 3)
+OwnFloor.fakeData <- rpois(n = nFakeObs, lambda = 3)
 ConditionGoodDummy.fakeData <- sample(0:1, nFakeObs, prob = table(combinedData.orig$ConditionGoodDummy)/nrow(combinedData.orig), replace = T)
 
 NumberOfRooms.fakeData <- sample(1:8, nFakeObs, prob = table(combinedData.orig$NumberOfRooms)/nrow(combinedData.orig), replace = T)
@@ -47,21 +47,23 @@ ThreeRoomsDummy.fakeData <- 1*(NumberOfRooms.fakeData == 3);
 FourRoomsOrMoreDummy.fakeData <- 1*(NumberOfRooms.fakeData >= 4);
 
 # priors where the "true" parameter values are drawn
-betaSquareMeters <- rnorm(n = 1, mean = 4000, sd = 1e3);
-betaSquareMetersGoodCond <- rnorm(n = 1, mean = 1e3, sd = 1e3);
-betaAgeOfTheBuilding <- rnorm(n = 1, mean = 0, sd = 2e3);
-betaTwoRoomsDummy <- rnorm(n = 1, mean = 5e3, sd = 1e4);
-betaThreeRoomsDummy <- rnorm(n = 1, mean = 7.5e3, sd = 1e4);
-betaFourRoomsOrMoreDummy <- rnorm(n = 1, mean = 7.5e3, sd = 1e4);
-betaSaunaDummy <- rnorm(n = 1, mean = 5e3, sd = 2.5e3);
-betaOwnFloor <- rnorm(n = 1, mean = 1e3, sd = 1e3); 
+Sqm_coef <- rnorm(n = 1, mean = 4000, sd = 1e3);
+CondGoodDummySqm_coef <- rnorm(n = 1, mean = 1e3, sd = 1e3);
+Age_coef <- rnorm(n = 1, mean = 0, sd = 2e3);
+TwoRoomsDummy_coef <- rnorm(n = 1, mean = 5e3, sd = 1e4);
+ThreeRoomsDummy_coef <- rnorm(n = 1, mean = 7.5e3, sd = 1e4);
+FourRoomsOrMoreDummy_coef <- rnorm(n = 1, mean = 7.5e3, sd = 1e4);
+SaunaDummy_coef <- rnorm(n = 1, mean = 5e3, sd = 2.5e3);
+OwnFloor_coef <- rnorm(n = 1, mean = 1e3, sd = 1e3); 
 
-sigma <- 10000 + rhcauchy(1, 5000);
+# sigma <- 10000 + rhcauchy(1, 5000);
+sigma <- rhcauchy(1, 15000);
 nu <- rgamma(1, shape = 2, rate = 0.1)
 
 # drawing the parameters for the population distribution
-betaInterceptPop <- rnorm(1, 50000, 50000); 
-sigmaInterceptPop <- 1000 + rhcauchy(n = 1, 10000);
+mu_pop <- rnorm(1, 50000, 50000); 
+# sigma_pop <- 1000 + rhcauchy(n = 1, 10000);
+sigma_pop <- rhcauchy(n = 1, 11000);
 
 # assing groups
 numberOfGroups <- length(levels(combinedData.orig$NeighborhoodFinalized))
@@ -73,28 +75,20 @@ groupDist <- groupDist/sum(groupDist);
 groupAssignments <- sample(groupNames, size = nFakeObs, replace = T, prob = groupDist)
 
 # drawing intercepts for the groups
-groupIntercept <- rnorm(length(groupNames), mean = betaInterceptPop, sd = sigmaInterceptPop)
+groupIntercept <- rnorm(length(groupNames), mean = mu_pop, sd = sigma_pop)
 
 # EV calculation
 EV.fakeData <- groupIntercept[groupAssignments] + 
-                betaSquareMeters*SquareMeters.fakeData +
-                betaSquareMetersGoodCond*SquareMeters.fakeData*ConditionGoodDummy.fakeData + 
-                betaAgeOfTheBuilding*AgeOfTheBuilding.fakeData + 
-                betaSaunaDummy*SaunaDummy.fakeData + 
-                betaOwnFloor*ownFloor.fixed.fakeData + 
-                betaTwoRoomsDummy*TwoRoomsDummy.fakeData + 
-                betaThreeRoomsDummy*ThreeRoomsDummy.fakeData +  
-                betaFourRoomsOrMoreDummy*FourRoomsOrMoreDummy.fakeData
+                Sqm_coef*SquareMeters.fakeData +
+                CondGoodDummySqm_coef*SquareMeters.fakeData*ConditionGoodDummy.fakeData + 
+                Age_coef*AgeOfTheBuilding.fakeData + 
+                SaunaDummy_coef*SaunaDummy.fakeData + 
+                OwnFloor_coef*OwnFloor.fakeData + 
+                TwoRoomsDummy_coef*TwoRoomsDummy.fakeData + 
+                ThreeRoomsDummy_coef*ThreeRoomsDummy.fakeData +  
+                FourRoomsOrMoreDummy_coef*FourRoomsOrMoreDummy.fakeData
 
 Price.fakeData <- EV.fakeData + sigma*rt(n = length(EV.fakeData), df = nu)
-
-# par(mfrow = c(1,2));
-# hist(Price.fakeData)
-# hist(combinedData$Price)
-# par(mfrow = c(1,1));
-# 
-# summary(Price.fakeData)
-# summary(combinedData$Price)
 
 fakeData <- data.frame(Price = Price.fakeData, 
                        Sqm = SquareMeters.fakeData,
@@ -103,12 +97,12 @@ fakeData <- data.frame(Price = Price.fakeData,
                        TwoRoomsDummy = TwoRoomsDummy.fakeData,
                        ThreeRoomsDummy = ThreeRoomsDummy.fakeData, 
                        FourRoomsOrMoreDummy = FourRoomsOrMoreDummy.fakeData,
-                       OwnFloor = ownFloor.fixed.fakeData,
+                       OwnFloor = OwnFloor.fakeData,
                        SaunaDummy = SaunaDummy.fakeData,
                        NeighborhoodAssignment = groupAssignments);
 
 ###########
-# fitting the model 
+# fitting the model - fake data 
 
 library(rstan)
 model2.stanObj <- stan_model(file = 'model2.stan'); 
@@ -126,13 +120,50 @@ stanFit.fakeData <- sampling(object = model2.stanObj,
                                          OwnFloor = fakeData$OwnFloor,
                                          SaunaDummy = fakeData$SaunaDummy, 
                                          NeighborhoodAssignment = fakeData$NeighborhoodAssignment),
-                             cores = 4, iter = 1000)
+                             cores = 4)
 
 print(stanFit.fakeData)
-plot(stanFit.fakeData)
+# plot(stanFit.fakeData)
 traceplot(stanFit.fakeData)
 
 posteriorSamples.fakeData <- as.matrix(stanFit.fakeData)
+
+# checking that mass actually concentrates around the true values... 
+trueValues <- c(Sqm_coef,
+                CondGoodDummySqm_coef,
+                Age_coef,
+                TwoRoomsDummy_coef,
+                ThreeRoomsDummy_coef,
+                FourRoomsOrMoreDummy_coef,
+                SaunaDummy_coef,
+                OwnFloor_coef,
+                sigma,
+                nu,
+                mu_pop,
+                sigma_pop)
+names(trueValues) <- c("Sqm_coef",
+                       "CondGoodDummySqm_coef",
+                       "Age_coef",
+                       "TwoRoomsDummy_coef",
+                       "ThreeRoomsDummy_coef",
+                       "FourRoomsOrMoreDummy_coef",
+                       "SaunaDummy_coef",
+                       "OwnFloor_coef",
+                       "sigma",
+                       "nu",
+                       "mu_pop",
+                       "sigma_pop")
+
+for(k in 1:length(trueValues)) {
+  hist(posteriorSamples.fakeData[,names(trueValues)[k]], main = names(trueValues)[k])
+  cat("parameter", names(trueValues)[k], "value", trueValues[k], "\n")
+  abline(v = trueValues[k], col = 'red', lty = 2, lwd = 2)
+  checkEnd <- readline(prompt = "q to end: "); 
+  
+  if(checkEnd == 'q') {
+    break; 
+  }
+}
 
 
 # checking loo statistics
@@ -140,7 +171,9 @@ library(loo)
 looObj.fakeData <- loo(stanFit.fakeData)
 looObj.fakeData
 
-# true data
+###########
+# fitting the model - true data
+
 set.seed(123); 
 testSetIndeces <- sample(1:nrow(combinedData), round(0.3*nrow(combinedData)), replace = F)
 
@@ -160,31 +193,24 @@ stanFit.trueData <- sampling(object = model2.stanObj,
                                          OwnFloor = estimationSet$OwnFloor,
                                          SaunaDummy = estimationSet$SaunaDummy, 
                                          NeighborhoodAssignment = estimationSet$NeighborhoodAssignment), 
-                             iter = 4000, 
-                             cores = 2,
-                             seed = 1234,
-                             control = list(max_treedepth = 15))
-# save.image("modelFit.RData")
+                             iter = 4000,
+                             seed = 1234, 
+                             cores = 4)
 
 print(stanFit.trueData)
-print(stanFit.trueData, pars = c("Sqm_coef", "CondGoodDummySqm_coef", "Age_coef", "TwoRoomsDummy_coef", "ThreeRoomsDummy_coef", "FourRoomsOrMoreDummy_coef", "OwnFloor_coef", "SaunaDummy_coef", "sigma", "nu", "mu_pop", "sigma_pop"))
-
-plot(stanFit.trueData)
-plot(stanFit.trueData, pars = c("Sqm_coef", "CondGoodDummySqm_coef", "Age_coef", "TwoRoomsDummy_coef", "ThreeRoomsDummy_coef", "FourRoomsOrMoreDummy_coef", "OwnFloor_coef", "SaunaDummy_coef", "sigma", "nu", "mu_pop", "sigma_pop"))
-
+# plot(stanFit.trueData)
 traceplot(stanFit.trueData)
-traceplot(stanFit.trueData, pars = c("Sqm_coef", "CondGoodDummySqm_coef", "Age_coef", "TwoRoomsDummy_coef", "ThreeRoomsDummy_coef", "FourRoomsOrMoreDummy_coef", "OwnFloor_coef", "SaunaDummy_coef", "sigma", "nu", "mu_pop", "sigma_pop"))
 
-# pairs(stanFit.trueData)
-# pairs(stanFit.trueData, pars = c("Sqm_coef", "CondGoodDummySqm_coef", "Age_coef", "TwoRoomsDummy_coef", "ThreeRoomsDummy_coef", "FourRoomsOrMoreDummy_coef", "OwnFloor_coef", "SaunaDummy_coef", "sigma", "nu", "mu_pop", "sigma_pop"))
+posteriorSamples.trueData <- as.matrix(stanFit.trueData)
 
-# checking loo statistics
+############################################################################################################
+# loo statistics necessary for model comparions and calculating stacking weights 
+
 looObj.trueData <- loo(stanFit.trueData)
 looObj.trueData
 
-
-# graphing means
-posteriorSamples.trueData <- as.matrix(stanFit.trueData)
+############################################################################################################
+# functions for generating poterior predictive functions for model stacking  
 
 getPosteriorPredictiveDraws <- function(dataSet, postSample, likelihoodSigmaName, likelihoodNuName) {
   
@@ -208,6 +234,14 @@ getPosteriorPredictiveDraws <- function(dataSet, postSample, likelihoodSigmaName
   return(predictiveDraws)
 }
 
+
+############################################################################################################
+# storing posterior draws, loo object, function for drawing from posterior predictice distribution for further use   
+
+save.image("modelFit2.RData");
+
+############################################################################################################
+# graphing means
 
 # estimation set means
 postPredDistDraws.estimation <- getPosteriorPredictiveDraws(dataSet = estimationSet, 

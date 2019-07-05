@@ -25,22 +25,17 @@ combinedData <- data.frame(Price = combinedData.orig$Price,
                            OwnFloor = combinedData.orig$ownFloor.fixed,
                            SaunaDummy = combinedData.orig$SaunaDummy);
 
-
-
 ############################
 # fake data generation
 
 nFakeObs <- 3000; 
 
-# sampling the fake data
-#   sampling parameters chosen roughly based on combinedData means and variances where appropriate
 set.seed(123)
-
 
 SquareMeters.fakeData <- rgamma(n = nFakeObs, shape = 67^2/1073, rate = 67/1073)
 AgeOfTheBuilding.fakeData <- rnbinom(nFakeObs, size = 2, prob = 41/850)
 SaunaDummy.fakeData <- sample(0:1, nFakeObs, prob = table(combinedData.orig$SaunaDummy)/nrow(combinedData.orig), replace = T)
-ownFloor.fixed.fakeData <- rpois(n = nFakeObs, lambda = 3)
+OwnFloor.fakeData <- rpois(n = nFakeObs, lambda = 3)
 ConditionGoodDummy.fakeData <- sample(0:1, nFakeObs, prob = table(combinedData.orig$ConditionGoodDummy)/nrow(combinedData.orig), replace = T)
 
 NumberOfRooms.fakeData <- sample(1:8, nFakeObs, prob = table(combinedData.orig$NumberOfRooms)/nrow(combinedData.orig), replace = T)
@@ -48,69 +43,47 @@ TwoRoomsDummy.fakeData <- 1*(NumberOfRooms.fakeData == 2);
 ThreeRoomsDummy.fakeData <- 1*(NumberOfRooms.fakeData == 3);
 FourRoomsOrMoreDummy.fakeData <- 1*(NumberOfRooms.fakeData >= 4); 
 
-# priors where the "true" parameter values are drawn
-betaIntercept <- rnorm(n = 1, mean = 0.7e5, sd = 5e3);
-betaSquareMeters <- rnorm(n = 1, mean = 4.5e3, sd = 1e3);
-betaSquareMetersGoodCond <- rnorm(n = 1, mean = 0.5e3, sd = 1e3);
-betaAgeOfTheBuilding <- rnorm(n = 1, mean = -1.5e3, sd = 1e3);
-betaTwoRoomsDummy <- rnorm(n = 1, mean = 5e3, sd = 1e4);
-betaThreeRoomsDummy <- rnorm(n = 1, mean = 7.5e3, sd = 1e4);
-betaFourRoomsOrMoreDummy <- rnorm(n = 1, mean = 7.5e3, sd = 1e4);
-betaSaunaDummy <- rnorm(n = 1, mean = 5e3, sd = 2.5e3);
-betaOwnFloor <- rnorm(n = 1, mean = 7e3, sd = 1e3); 
+# priors 
+Intercept_coef <- rnorm(n = 1, mean = 0.7e5, sd = 5e3);
+Sqm_coef <- rnorm(n = 1, mean = 4.5e3, sd = 1e3);
+CondGoodDummySqm_coef <- rnorm(n = 1, mean = 0.5e3, sd = 1e3);
+Age_coef <- rnorm(n = 1, mean = -1.5e3, sd = 1e3);
+TwoRoomsDummy_coef <- rnorm(n = 1, mean = 5e3, sd = 1e4);
+ThreeRoomsDummy_coef <- rnorm(n = 1, mean = 7.5e3, sd = 1e4);
+FourRoomsOrMoreDummy_coef <- rnorm(n = 1, mean = 7.5e3, sd = 1e4);
+SaunaDummy_coef <- rnorm(n = 1, mean = 5e3, sd = 2.5e3);
+OwnFloor_coef <- rnorm(n = 1, mean = 7e3, sd = 1e3); 
 
+mu <- Intercept_coef + 
+  (Sqm_coef + CondGoodDummySqm_coef*ConditionGoodDummy.fakeData)*SquareMeters.fakeData + 
+  Age_coef*AgeOfTheBuilding.fakeData + 
+  TwoRoomsDummy_coef*TwoRoomsDummy.fakeData +
+  ThreeRoomsDummy_coef*ThreeRoomsDummy.fakeData +
+  FourRoomsOrMoreDummy_coef*FourRoomsOrMoreDummy.fakeData + 
+  SaunaDummy_coef*SaunaDummy.fakeData +
+  OwnFloor_coef*OwnFloor.fakeData;
 
-# real nu;
-# nu ~ gamma(2,0.1);
+# sigma <- 10000 + rhcauchy(1, 5000);
+sigma <- rhcauchy(1, 15000);
 
-# library(metRology); # for sampling scaled & shifted t distribution
-# sampleSize <- 100000; 
-# otos <- rt.scaled(sampleSize, df = 10, mean = 10, sd = 3); mean(otos); var(otos)
-
-# mean.param <- 10; 
-# sd.param <- 3; 
-# df.param <- 10; 
-# otos.base <- mean.param + sd.param*rt(n = sampleSize, df = df.param); mean(otos.base); var(otos.base)
-
-# hist(otos); 
-# hist(otos.base;)
-
-mu <- betaIntercept + 
-  (betaSquareMeters + betaSquareMetersGoodCond*ConditionGoodDummy.fakeData)*SquareMeters.fakeData + 
-  betaAgeOfTheBuilding*AgeOfTheBuilding.fakeData + 
-  betaTwoRoomsDummy*TwoRoomsDummy.fakeData +
-  betaThreeRoomsDummy*ThreeRoomsDummy.fakeData +
-  betaFourRoomsOrMoreDummy*FourRoomsOrMoreDummy.fakeData + 
-  betaSaunaDummy*SaunaDummy.fakeData +
-  betaOwnFloor*ownFloor.fixed.fakeData;
-
-sigma <- 10000 + rhcauchy(1, 5000);
 nu <- rgamma(1, shape = 2, rate = 0.1)
 
 Price.fakeData <- mu + sigma*rt(n = length(mu), df = nu)
 
-# par(mfrow = c(1,2)); 
-# hist(Price.fakeData)
-# hist(combinedData$Price)
-# par(mfrow = c(1,1)); 
-# 
-# summary(Price.fakeData)
-# summary(combinedData$Price)
- 
 fakeData <- data.frame(Price = Price.fakeData,
                        Sqm = SquareMeters.fakeData, 
                        CondGoodDummySqm = SquareMeters.fakeData*ConditionGoodDummy.fakeData,
                        Age = AgeOfTheBuilding.fakeData, 
                        NoOfRooms = NumberOfRooms.fakeData, 
                        SaunaDummy = SaunaDummy.fakeData, 
-                       OwnFloor = ownFloor.fixed.fakeData, 
+                       OwnFloor = OwnFloor.fakeData, 
                        CondGoodDummy = ConditionGoodDummy.fakeData,
                        TwoRoomsDummy = TwoRoomsDummy.fakeData,
                        ThreeRoomsDummy = ThreeRoomsDummy.fakeData, 
                        FourRoomsOrMoreDummy = FourRoomsOrMoreDummy.fakeData)
 
 ###########
-# fitting the model 
+# fitting the model - fake data 
 
 library(rstan)
 model1.stanObj <- stan_model(file = 'model1.stan'); 
@@ -126,18 +99,58 @@ stanFit.fakeData <- sampling(object = model1.stanObj,
                                          FourRoomsOrMoreDummy = fakeData$FourRoomsOrMoreDummy,
                                          OwnFloor = fakeData$OwnFloor,
                                          SaunaDummy = fakeData$SaunaDummy),
-                             cores = 3)
+                             cores = 4)
 
 print(stanFit.fakeData)
-plot(stanFit.fakeData)
+# plot(stanFit.fakeData)
 traceplot(stanFit.fakeData)
+
+posteriorSamples.fakeData <- as.matrix(stanFit.fakeData)
+
+# checking that mass actually concentrates around the true values... 
+trueValues <- c(Intercept_coef,
+                Sqm_coef,
+                CondGoodDummySqm_coef,
+                Age_coef,
+                TwoRoomsDummy_coef,
+                ThreeRoomsDummy_coef,
+                FourRoomsOrMoreDummy_coef,
+                SaunaDummy_coef,
+                OwnFloor_coef,
+                sigma, 
+                nu)
+names(trueValues) <- c("Intercept_coef",
+                       "Sqm_coef",
+                       "CondGoodDummySqm_coef",
+                       "Age_coef",
+                       "TwoRoomsDummy_coef",
+                       "ThreeRoomsDummy_coef",
+                       "FourRoomsOrMoreDummy_coef",
+                       "SaunaDummy_coef",
+                       "OwnFloor_coef", 
+                       "sigma", 
+                       "nu")
+
+for(k in 1:length(trueValues)) {
+  hist(posteriorSamples.fakeData[,names(trueValues)[k]], main = names(trueValues)[k])
+  cat("parameter", names(trueValues)[k], "value", trueValues[k], "\n")
+  abline(v = trueValues[k], col = 'red', lty = 2, lwd = 2)
+  checkEnd <- readline(prompt = "q to end: "); 
+  
+  if(checkEnd == 'q') {
+    break; 
+  }
+}
+
 
 # checking loo statistics
 library(loo)
 looObj.fakeData <- loo(stanFit.fakeData)
 looObj.fakeData
 
-# true data
+###########
+# fitting the model - true data
+
 set.seed(123); 
 testSetIndeces <- sample(1:nrow(combinedData), round(0.3*nrow(combinedData)), replace = F)
 
@@ -157,25 +170,22 @@ stanFit.trueData <- sampling(object = model1.stanObj,
                                      SaunaDummy = estimationSet$SaunaDummy), 
                          iter = 4000, 
                          cores = 4,
-                         seed = 1234,
-                         control = list(max_treedepth = 15))
-# save.image("modelFit.RData")
+                         seed = 1234);
 
 print(stanFit.trueData)
-plot(stanFit.trueData)
+# plot(stanFit.trueData)
 traceplot(stanFit.trueData)
+
+############################################################################################################
+# loo statistics necessary for model comparions and calculating stacking weights 
 
 # checking loo statistics
 looObj.trueData <- loo(stanFit.trueData)
 looObj.trueData
 
-# Vehtarin laskemat suureet
-# RMSE, R^2, 90 % error
-# - LOO R^2, avehtari.github.io/bayes_R2/bayes_R2.html
+############################################################################################################
+# functions for generating poterior predictive functions for model stacking  
 
-# http://www.stat.columbia.edu/~gelman/research/unpublished/bayes_R2_v3.pdf
-
-# graphing means
 posteriorSamples.trueData <- as.matrix(stanFit.trueData)
 
 getPosteriorPredictiveDraws <- function(dataSet, postSample, likelihoodSigmaName, likelihoodNuName) {
@@ -195,6 +205,13 @@ getPosteriorPredictiveDraws <- function(dataSet, postSample, likelihoodSigmaName
   return(predictiveDraws)
 }
 
+############################################################################################################
+# storing posterior draws, loo object, function for drawing from posterior predictice distribution for further use   
+
+save.image("modelFit1.RData");
+
+############################################################################################################
+# graphing means  
 
 # estimation set means
 postPredDistDraws.estimation <- getPosteriorPredictiveDraws(dataSet = estimationSet, postSample = posteriorSamples.trueData, likelihoodSigmaName = "sigma", likelihoodNuName = "nu")
@@ -218,12 +235,13 @@ predDistMean.test <- apply(postPredDistDraws.test, MARGIN = 2, mean)
 plot(testSet$Price, predDistMean.test)
 abline(a = 0, b = 1, lty = 2, col = 'red')
 
-largDifIndeces.test <- order(abs(testSet$Price - predDistMean.test), decreasing = T);
+# largDifIndeces.test <- order(abs(testSet$Price - predDistMean.test), decreasing = T);
+# k <- 2; 
+# targetIndex <- largDifIndeces.test[k];
+# hist(postPredDistDraws.test[,targetIndex], nclass = 50)
+# abline(v = testSet$Price[targetIndex], col = 'red', lty = 2);
 
-k <- 2; 
-targetIndex <- largDifIndeces.test[k];
-hist(postPredDistDraws.test[,targetIndex], nclass = 50)
-abline(v = testSet$Price[targetIndex], col = 'red', lty = 2);
+########################################################################################################################################################################
 
 drawVariancePostSample <- function(postSample, likelihoodSigmaName, likelihoodNuName) {
   sigmaPostSample <- postSample[,likelihoodSigmaName];
@@ -237,6 +255,9 @@ drawVariancePostSample <- function(postSample, likelihoodSigmaName, likelihoodNu
 variancePostSample <- drawVariancePostSample(postSample = posteriorSamples.trueData, likelihoodSigmaName = "sigma", likelihoodNuName = "nu")
 hist(variancePostSample)
 summary(variancePostSample)
+
+# - LOO R^2, avehtari.github.io/bayes_R2/bayes_R2.html
+# http://www.stat.columbia.edu/~gelman/research/unpublished/bayes_R2_v3.pdf
 
 getBayesianR2Draws <- function(postPredictiveDistDraws, residualVarianceDraws) {
   # following (3) and appendix of http://www.stat.columbia.edu/~gelman/research/unpublished/bayes_R2_v3.pdf

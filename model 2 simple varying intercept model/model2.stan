@@ -39,14 +39,11 @@ model {
 
   // pop distributions
   mu_pop ~ normal(50000, 50000); 
-  sigma_pop ~ cauchy(1000, 10000); 
   
-  // intercept draws
-  /*for(k in 1:N_neighborhood) {
-    Intercept_coef[k] ~ normal(mu_pop, sigma_pop);
-  }*/
-  //Intercept_coef ~ normal(mu_pop, sigma_pop); 
+  //sigma_pop ~ cauchy(1000, 10000); 
+  sigma_pop ~ cauchy(0, 11000); 
   
+  // intercept draws - non-centered parameterization 
   Intercept_offset ~ normal(0,1); 
   Intercept_coef = mu_pop + Intercept_offset*sigma_pop; 
   
@@ -60,7 +57,8 @@ model {
   OwnFloor_coef ~ normal(1000, 1000); 
   SaunaDummy_coef ~ normal(5000, 2500);
   
-  sigma ~ cauchy(10000, 5000); 
+  //sigma ~ cauchy(10000, 5000); 
+  sigma ~ cauchy(0, 15000); 
   nu ~ gamma(2, 0.1); 
   
   // EVs

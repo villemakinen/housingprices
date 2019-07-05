@@ -29,12 +29,7 @@ parameters {
   real<lower=0> nu; 
 }
 model {
-  // EV calculations 
   vector[N] mu;
-  
-  /*for ( i in 1:N ) {
-    mu[i] = Intercept_coef + Sqm_coef*Sqm[i] + CondGoodDummySqm_coef*CondGoodDummySqm[i] + Age_coef*Age[i] + TwoRoomsDummy_coef*TwoRoomsDummy[i] + ThreeRoomsDummy_coef*ThreeRoomsDummy[i] + FourRoomsOrMoreDummy_coef*FourRoomsOrMoreDummy[i] + OwnFloor_coef*OwnFloor[i] + SaunaDummy_coef*SaunaDummy[i];
-  }*/
   
   mu = Intercept_coef + Sqm_coef*Sqm + CondGoodDummySqm_coef*CondGoodDummySqm + Age_coef*Age + TwoRoomsDummy_coef*TwoRoomsDummy + ThreeRoomsDummy_coef*ThreeRoomsDummy + FourRoomsOrMoreDummy_coef*FourRoomsOrMoreDummy + OwnFloor_coef*OwnFloor + SaunaDummy_coef*SaunaDummy;
   
@@ -49,14 +44,16 @@ model {
   OwnFloor_coef ~ normal(7000, 1000); 
   SaunaDummy_coef ~ normal(5000, 2500);
   
-  sigma ~ cauchy(10000, 5000);
+  //sigma ~ cauchy(10000, 5000);
+  sigma ~ cauchy(0, 15000);
+  
   nu ~ gamma(2, 0.1);
   
   // likelihood
   Price ~ student_t(nu, mu, sigma); 
 }
 generated quantities {
-  vector[N] log_lik;
+  vector[N] log_lik; // for loo-package
   
   for ( i in 1:N ) {
       log_lik[i] = student_t_lpdf(Price[i] | nu, Intercept_coef + Sqm_coef*Sqm[i] + CondGoodDummySqm_coef*CondGoodDummySqm[i] + Age_coef*Age[i] + TwoRoomsDummy_coef*TwoRoomsDummy[i] + ThreeRoomsDummy_coef*ThreeRoomsDummy[i] + FourRoomsOrMoreDummy_coef*FourRoomsOrMoreDummy[i] + OwnFloor_coef*OwnFloor[i] + SaunaDummy_coef*SaunaDummy[i], sigma); 

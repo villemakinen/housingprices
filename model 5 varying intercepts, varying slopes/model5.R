@@ -118,7 +118,6 @@ hist(Price.fakeData)
 hist(combinedData.orig$Price)
 par(mfrow=c(1,1))
 
-
 fakeData <- data.frame(Price = Price.fakeData, 
                        Sqm = Sqm.fakeData,
                        CondGoodDummySqm = Sqm.fakeData*ConditionGoodDummy.fakeData,
@@ -130,11 +129,6 @@ fakeData <- data.frame(Price = Price.fakeData,
                        SaunaDummy = SaunaDummy.fakeData,
                        NeighborhoodAssignment = groupAssignments);
 
-estimationIndeces <- sample(1:nrow(fakeData), size = round(0.7*nrow(fakeData)))
-
-estimationFakeData <- fakeData[estimationIndeces,];
-testFakeData <- fakeData[-estimationIndeces,];
-
 ############################
 # estimating the model with fake data
 
@@ -143,23 +137,21 @@ library(rstan)
 model5.stanObj <- stan_model(file = 'model5.stan');
 
 stanFit.fakeData <- sampling(object = model5.stanObj, 
-                             data = list(N = nrow(estimationFakeData), 
+                             data = list(N = nrow(fakeData), 
                                          N_neighborhood = numberOfGroups,
-                                         Price = estimationFakeData$Price, 
-                                         Sqm = estimationFakeData$Sqm,
-                                         CondGoodDummySqm = estimationFakeData$CondGoodDummySqm,
-                                         Age = estimationFakeData$Age,
-                                         TwoRoomsDummy = estimationFakeData$TwoRoomsDummy,
-                                         ThreeRoomsDummy = estimationFakeData$ThreeRoomsDummy, 
-                                         FourRoomsOrMoreDummy = estimationFakeData$FourRoomsOrMoreDummy,
-                                         OwnFloor = estimationFakeData$OwnFloor,
-                                         SaunaDummy = estimationFakeData$SaunaDummy,
-                                         NeighborhoodAssignment = estimationFakeData$NeighborhoodAssignment),
-                             iter = 4000, verbose = T, cores = 4, chains = 4)
+                                         Price = fakeData$Price, 
+                                         Sqm = fakeData$Sqm,
+                                         CondGoodDummySqm = fakeData$CondGoodDummySqm,
+                                         Age = fakeData$Age,
+                                         TwoRoomsDummy = fakeData$TwoRoomsDummy,
+                                         ThreeRoomsDummy = fakeData$ThreeRoomsDummy, 
+                                         FourRoomsOrMoreDummy = fakeData$FourRoomsOrMoreDummy,
+                                         OwnFloor = fakeData$OwnFloor,
+                                         SaunaDummy = fakeData$SaunaDummy,
+                                         NeighborhoodAssignment = fakeData$NeighborhoodAssignment),
+                             cores = 4)
 
 print(stanFit.fakeData)
-summary(stanFit.fakeData)
-plot(stanFit.fakeData)
 traceplot(stanFit.fakeData)
 
 # dev.off()
@@ -170,8 +162,52 @@ traceplot(stanFit.fakeData)
 
 posteriorSamples.fakeData <- as.matrix(stanFit.fakeData)
 
-trueValues <- c(EV_betaSquareMetersGoodCond, EV_betaSquareMeters, EV_betaIntercept, sigma_Neighborhood_SqmGoodCond, sigma_Neighborhood_Sqm, sigma_Neighborhood_Intercept, Age_coef,    TwoRoomsDummy_coef,  ThreeRoomsDummy_coef,   FourRoomsOrMoreDummy_coef,   OwnFloor_coef,    SaunaDummy_coef, sigma, nu)
-names(trueValues) <- c("Mu_CondGoodSqm_coef", "Mu_Sqm_coef", "Mu_Intercept_coef", "Sigma_CondGoodSqm_coef", "Sigma_Sqm_coef", "Sigma_Intercept_coef", "Age_coef", "TwoRoomsDummy_coef", "ThreeRoomsDummy_coef", "FourRoomsOrMoreDummy_coef", "OwnFloor_coef", "SaunaDummy_coef", "sigma", "nu")
+trueValues <- c(EV_betaSquareMetersGoodCond, 
+                EV_betaSquareMeters, 
+                EV_betaIntercept, 
+                sigma_Neighborhood_SqmGoodCond, 
+                sigma_Neighborhood_Sqm, 
+                sigma_Neighborhood_Intercept, 
+                Age_coef,    
+                TwoRoomsDummy_coef,  
+                ThreeRoomsDummy_coef,   
+                FourRoomsOrMoreDummy_coef,   
+                OwnFloor_coef,    
+                SaunaDummy_coef, 
+                sigma, 
+                nu,
+                RhoMatrix[1,1],
+                RhoMatrix[2,1],
+                RhoMatrix[3,1],
+                RhoMatrix[1,2],
+                RhoMatrix[2,2],
+                RhoMatrix[3,2],
+                RhoMatrix[1,3],
+                RhoMatrix[2,3],
+                RhoMatrix[3,3])
+names(trueValues) <- c("Mu_CondGoodSqm_coef", 
+                       "Mu_Sqm_coef",
+                       "Mu_Intercept_coef",
+                       "Sigma_CondGoodSqm_coef",
+                       "Sigma_Sqm_coef",
+                       "Sigma_Intercept_coef",
+                       "Age_coef",
+                       "TwoRoomsDummy_coef",
+                       "ThreeRoomsDummy_coef",
+                       "FourRoomsOrMoreDummy_coef",
+                       "OwnFloor_coef",
+                       "SaunaDummy_coef",
+                       "sigma",
+                       "nu",
+                       "Rho[1,1]",
+                       "Rho[2,1]",                 
+                       "Rho[3,1]",
+                       "Rho[1,2]",
+                       "Rho[2,2]",
+                       "Rho[3,2]",
+                       "Rho[1,3]",                 
+                       "Rho[2,3]",
+                       "Rho[3,3]")
 
 for(k in 1:length(trueValues)) {
   hist(posteriorSamples.fakeData[,names(trueValues)[k]], main = names(trueValues)[k])
@@ -225,27 +261,29 @@ traceplot(stanFit.trueData)
 
 posteriorSamples.trueData <- as.matrix(stanFit.trueData)
 
-k <- 1; 
-# k <- 4163; # for the varying intercept, slopes 
-while(T) {
-  hist(posteriorSamples.trueData[,k], main = colnames(posteriorSamples.trueData)[k])
-  readline(prompt = "traceplot next...")
-  plot(traceplot(stanFit.trueData, par = colnames(posteriorSamples.trueData)[k]))
-  
-  checkEnd <- readline(prompt = "q to end: "); 
-  if(checkEnd == 'q') {
-    break; 
-  }
-  k <- k + 1; 
-}
+# k <- 1; 
+# # k <- 4163; # for the varying intercept, slopes 
+# while(T) {
+#   hist(posteriorSamples.trueData[,k], main = colnames(posteriorSamples.trueData)[k])
+#   readline(prompt = "traceplot next...")
+#   plot(traceplot(stanFit.trueData, par = colnames(posteriorSamples.trueData)[k]))
+#   
+#   checkEnd <- readline(prompt = "q to end: "); 
+#   if(checkEnd == 'q') {
+#     break; 
+#   }
+#   k <- k + 1; 
+# }
 
-# loo statistics
+############################################################################################################
+# loo statistics necessary for model comparions and calculating stacking weights 
+
+# checking loo statistics
 looObj.trueData <- loo(stanFit.trueData, cores = 4)
 looObj.trueData
 
-
-####################################
-# prediction tools etc. 
+############################################################################################################
+# functions for generating poterior predictive functions for model stacking  
 
 getPosteriorPredictiveDraws <- function(dataSet, postSample, likelihoodSigmaName, likelihoodNuName) {
   
@@ -283,6 +321,13 @@ getPosteriorPredictiveDraws <- function(dataSet, postSample, likelihoodSigmaName
   return(predictiveDraws)
 }
 
+
+############################################################################################################
+# storing posterior draws, loo object, function for drawing from posterior predictice distribution for further use   
+
+save.image("modelFit5.RData");
+
+############################################################################################################
 
 # estimation set means
 postPredDistDraws.estimation <- getPosteriorPredictiveDraws(dataSet = estimationSet, 

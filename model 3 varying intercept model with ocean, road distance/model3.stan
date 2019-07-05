@@ -32,9 +32,9 @@ parameters{
   real<lower=0> sigma; 
   real<lower=0> nu; 
   
-  real Intercept_pop;
-  real OceanDistance_pop;
-  real RoadDistance_pop; 
+  real Intercept_pop_coef;
+  real OceanDistance_pop_coef;
+  real RoadDistance_pop_coef; 
   
   real<lower=0> sigma_pop; 
   vector[N_neighborhood] Intercept_offset; 
@@ -44,15 +44,16 @@ model {
   vector[N_neighborhood] Intercept_coef;
 
   // pop distributions
-  Intercept_pop ~ normal(150000, 50000); 
-  OceanDistance_pop ~ normal(-5, 3); 
-  RoadDistance_pop ~ normal(-5, 3); 
+  Intercept_pop_coef ~ normal(150000, 50000); 
+  OceanDistance_pop_coef ~ normal(-5, 3); 
+  RoadDistance_pop_coef ~ normal(-5, 3); 
   
-  sigma_pop ~ cauchy(10000, 10000); 
+  //sigma_pop ~ cauchy(10000, 10000); 
+  sigma_pop ~ cauchy(0, 20000); 
   
-  // intercept draws
+  // intercept draws - non-centered parameterization 
   Intercept_offset ~ normal(0,1); 
-  Intercept_coef = Intercept_pop + OceanDistance*OceanDistance_pop + RoadDistance*RoadDistance_pop + Intercept_offset*sigma_pop; 
+  Intercept_coef = Intercept_pop_coef + OceanDistance*OceanDistance_pop_coef + RoadDistance*RoadDistance_pop_coef + Intercept_offset*sigma_pop; 
   
   // priors 
   Sqm_coef ~ normal(5000, 1000);
@@ -64,7 +65,8 @@ model {
   SaunaDummy_coef ~ normal(5000, 2500);
   OwnFloor_coef ~ normal(1000, 1000); 
   
-  sigma ~ cauchy(10000, 5000); 
+  //sigma ~ cauchy(10000, 5000);
+  sigma ~ cauchy(0, 15000);
   nu ~ gamma(2, 0.1); 
   
   // EVs
@@ -80,7 +82,7 @@ generated quantities {
   vector[N_neighborhood] Intercept_coef;
 
   // realized intercepts
-  Intercept_coef = Intercept_pop + OceanDistance*OceanDistance_pop + RoadDistance*RoadDistance_pop + Intercept_offset*sigma_pop;
+  Intercept_coef = Intercept_pop_coef + OceanDistance*OceanDistance_pop_coef + RoadDistance*RoadDistance_pop_coef + Intercept_offset*sigma_pop;
   
   // for loo-package
   for(k in 1:N) {
