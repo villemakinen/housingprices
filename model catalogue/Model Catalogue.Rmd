@@ -1,8 +1,35 @@
 ---
 title: "Model summary"
-output: pdf_document
+output: html_document
 ---
-  
+   
+## Variable descriptions s
+
+For observation $i$, term
+
+1. $\text{Sqm}_i$ is the size of the apartment measured in square meters,
+2. $\text{GoodConditionSqm}_i$ is an interaction term of the size of the apartment and the condition of the apartment,
+    + $\text{GoodConditionSqm}_i$ gets the same value as $\text{Sqm}_i$ if the condition of the apartment is listed as good and 0 otherwise. 
+3. $\text{Age}_i$ is the age of the building where the apartment is located measured as the difference between the year the building was built and 2019,
+4. $\text{TwoRoomsDummy}_i$ is a dummy variable describing whether the apartment was listed to have 2 rooms,
+5. $\text{ThreeRoomsDummy}_i$ is a dummy variable describing whether the apartment was listed to have 3 rooms,
+6. $\text{FourRoomsOrModeDummy}_i$ is a dummy variable describing whether the apartment was listed to have 4 rooms or more,
+7. $\text{OwnFloor}_i$ is the floor where the apartment was located
+
+and 
+
+8. $\text{SaunaDummy}_i$ is a dummy variable describing whether the apartment was listed to have a sauna.
+ 
+Next, for models 2-5, the term $\text{Neighborhood}_i$ describes in which neighborhood the apartment is located. The possible values for $\text{Neighborhood}_i$ range from 1 to 130. 
+ 
+Finally, $\text{Price}_i$ is the sales price for observation $i$. 
+
+## General approach for choosing priors
+
+The priors for the parameters were not chosen on any domain-specific expertise about the expected size of effects etc. The approach was rather first deciding the expected direction of the effect on price for each of the variables. Then the values for the expected values and for the dispersions parameters were chosen by simulating data from the joint distribution with these values: If the histograms of the generated sales prices were 'roughly' reasonable over many simulations, the values were seen as acceptable (Data generated with this approach and this joint distribution aslo generated negative sales parameters which could be seen as a weakness). 
+
+The prior for the $\nu$-parameter was chosen on the basis of suggestions from mcstan.org for Student's t distributions. 
+
 ## Model 1
 
 Priors
@@ -16,14 +43,53 @@ $\beta_{\text{Intercept}} \sim \text{N}(70000, 50000) \\
 \beta_{\text{FourRoomsOrMoreDummy}} \sim \text{N}(7500, 10000) \\
 \beta_{\text{OwnFloor}} \sim \text{N}(7000, 1000) \\
 \beta_{\text{SaunaDummy}} \sim \text{N}(5000, 2500) \\
-\sigma \sim \text{Half-Cauchy}(10000, 5000) \\
+\sigma \sim \text{Half-Cauchy}(15000) \\
 \nu \sim \text{Gamma}(2, 0.1)$
 
-rest TBA
+Expected value $\mu_i$ for observation $i$
+
+$\mu_i = \beta_{\text{Intercept}} + \beta_{\text{Sqm}} \text{Sqm}_i + \beta_{\text{Sqm, Good Condition}} \text{GoodConditionSqm}_i + \beta_{\text{Age}} \text{Age}_i + \beta_{\text{TwoRoomsDummy}} \text{TwoRoomsDummy}_i + \\
+\qquad{ }         \beta_{\text{ThreeRoomsDummy}} \text{ThreeRoomsDummy}_i + \beta_{\text{FourRoomsOrMoreDummy}} \text{FourRoomsOrModeDummy}_i + \beta_{\text{OwnFloor}} \text{OwnFloor}_i + \\
+\qquad{ }          \beta_{\text{SaunaDummy}} \text{SaunaDummy}_i$
+
+Likelihood (generalized Student's t)
+
+$\text{Price}_i \sim t_\nu(\mu, \sigma)$ 
 
 ## Model 2 
 
-TBA
+Group varying coefficients over neighborhoods 
+
+$\mu_{\text{Intercept}} \sim \text{N}(50000, 50000) \\
+\sigma_{\text{Intercept}} \sim \text{Half-Cauchy}(11000) \\
+\beta_{\text{Intercept}, j }$
+
+$\mu \\
+  \\
+ \sim \text{N}(\mu_{\text{Intercept}}, \sigma^2_{\text{Intercept}}), j = 1, \ldots, 130 $
+
+Priors
+
+$ \beta_{\text{Sqm}} \sim \text{N}(4500, 1000) \\
+\beta_{\text{Sqm, Good Condition}} \sim \text{N}(1000, 1000) \\
+\beta_{\text{Age}} \sim \text{N}(-1500, 2000) \\
+\beta_{\text{TwoRoomsDummy}} \sim \text{N}(5000, 10000) \\
+\beta_{\text{ThreeRoomsDummy}} \sim \text{N}(7500, 10000) \\
+\beta_{\text{FourRoomsOrMoreDummy}} \sim \text{N}(7500, 10000) \\
+\beta_{\text{OwnFloor}} \sim \text{N}(7000, 1000) \\
+\beta_{\text{SaunaDummy}} \sim \text{N}(5000, 2500) \\
+\sigma \sim \text{Half-Cauchy}(15000) \\
+\nu \sim \text{Gamma}(2, 0.1)$
+
+Expected value $\mu_i$ for observation $i$
+
+$\mu_i = \beta_{\text{Intercept}} + \beta_{\text{Sqm}} \text{Sqm}_i + \beta_{\text{Sqm, Good Condition}} \text{GoodConditionSqm}_i + \beta_{\text{Age}} \text{Age}_i + \beta_{\text{TwoRoomsDummy}} \text{TwoRoomsDummy}_i + \\
+\qquad{ }         \beta_{\text{ThreeRoomsDummy}} \text{ThreeRoomsDummy}_i + \beta_{\text{FourRoomsOrMoreDummy}} \text{FourRoomsOrModeDummy}_i + \beta_{\text{OwnFloor}} \text{OwnFloor}_i + \\
+\qquad{ }          \beta_{\text{SaunaDummy}} \text{SaunaDummy}_i$
+
+Likelihood (generalized Student's t)
+
+$\text{Price}_i \sim t_\nu(\mu, \sigma)$ 
 
 ## Model 3
 

@@ -31,8 +31,6 @@ parameters {
 model {
   vector[N] mu;
   
-  mu = Intercept_coef + Sqm_coef*Sqm + CondGoodDummySqm_coef*CondGoodDummySqm + Age_coef*Age + TwoRoomsDummy_coef*TwoRoomsDummy + ThreeRoomsDummy_coef*ThreeRoomsDummy + FourRoomsOrMoreDummy_coef*FourRoomsOrMoreDummy + OwnFloor_coef*OwnFloor + SaunaDummy_coef*SaunaDummy;
-  
   // priors
   Intercept_coef ~ normal(70000, 50000);
   Sqm_coef  ~ normal(4500, 1000);
@@ -48,6 +46,9 @@ model {
   sigma ~ cauchy(0, 15000);
   
   nu ~ gamma(2, 0.1);
+  
+  mu = Intercept_coef + Sqm_coef*Sqm + CondGoodDummySqm_coef*CondGoodDummySqm + Age_coef*Age + TwoRoomsDummy_coef*TwoRoomsDummy + ThreeRoomsDummy_coef*ThreeRoomsDummy + FourRoomsOrMoreDummy_coef*FourRoomsOrMoreDummy + OwnFloor_coef*OwnFloor + SaunaDummy_coef*SaunaDummy;
+  
   
   // likelihood
   Price ~ student_t(nu, mu, sigma); 

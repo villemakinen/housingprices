@@ -7,6 +7,7 @@ library(extraDistr)
 setwd('/home/asdf/Desktop/gradu/git/housingprices/model 2 simple varying intercept model/')
 
 rm(list=ls()); gc(); 
+# load(file = 'modelFit2.RData')
 
 combinedData.orig <- read.csv2("finalizedData29122018.csv")
 

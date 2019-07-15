@@ -5,7 +5,8 @@ library(extraDistr)
 
 setwd('/home/asdf/Desktop/gradu/git/housingprices/model 1 simple regression/')
 
-rm(list=ls()); gc(); 
+rm(list=ls()); gc();
+# load(file = 'modelFit1.RData')
 
 combinedData.orig <- read.csv2("finalizedData29122018.csv")
 
