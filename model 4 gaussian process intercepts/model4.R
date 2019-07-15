@@ -4,6 +4,8 @@ library(extraDistr)
 setwd('/home/asdf/Desktop/gradu/git/housingprices/model 4 gaussian process intercepts/')
 
 rm(list=ls()); gc(); 
+# load(file = 'modelFit4.RData')
+
 
 combinedData.orig <- read.csv2("finalizedData29122018.csv")
 oceanRoadDistanceData <- read.csv("oceanDistancesComplete.csv") # for neighborhood keys

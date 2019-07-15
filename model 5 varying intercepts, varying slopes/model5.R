@@ -6,6 +6,8 @@ library(extraDistr)
 setwd('/home/asdf/Desktop/gradu/git/housingprices/model 5 varying intercepts, varying slopes/')
 
 rm(list=ls()); gc(); 
+# load(file = 'modelFit5.RData')
+
 
 combinedData.orig <- read.csv2("finalizedData29122018.csv")
 

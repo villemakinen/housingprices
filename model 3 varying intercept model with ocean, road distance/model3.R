@@ -6,6 +6,8 @@ library(extraDistr)
 setwd('/home/asdf/Desktop/gradu/git/housingprices/model 3 varying intercept model with ocean, road distance/')
 
 rm(list=ls()); gc(); 
+# load(file = 'modelFit3.RData')
+
 
 combinedData.orig <- read.csv2("finalizedData29122018.csv")
 
