@@ -71,7 +71,11 @@ groupDist <- groupDist/sum(groupDist);
 groupAssignments <- sample(x = groupNames, size = nFakeObs, replace = T, prob = groupDist)
 
 # coefficient draws 
+<<<<<<< HEAD
+# library(rethinking); 
+=======
 library(rethinking); # see https://github.com/rmcelreath/statrethinking_winter2019
+>>>>>>> 3d2ff0503af92b818e3f2d9acf64121a76c1ae9c
 library(extraDistr); 
 
 # Sigma matrix for group specific coefficients
