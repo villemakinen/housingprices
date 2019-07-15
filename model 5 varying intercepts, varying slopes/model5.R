@@ -66,7 +66,7 @@ groupAssignments <- sample(x = groupNames, size = nFakeObs, replace = T, prob = 
 
 ####################################################################
 # coefficient draws 
-library(rethinking); 
+# library(rethinking); 
 library(extraDistr); 
 
 # Sigma matrix for group specific coefficients
