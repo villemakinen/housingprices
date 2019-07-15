@@ -20,14 +20,6 @@ combinedData.orig$NeighborhoodFinalized[combinedData.orig$NeighborhoodFinalized 
 # distance data 
 distanceData.orig <- read.csv("oceanDistancesComplete.csv")
 
-# distIdentifiers <- unique(tolower(distanceData.orig$nimiYhd))
-# dataIdentifiers <- unique(tolower(combinedData.orig$NeighborhoodFinalized))
-# 
-# setequal(distIdentifiers, dataIdentifiers)
-# intersect(distIdentifiers, dataIdentifiers)
-# dataIdentifiers[!(dataIdentifiers %in% distIdentifiers)]
-# distIdentifiers[!(distIdentifiers %in% dataIdentifiers)]
-
 combinedData.orig$NeighborhoodFinalized <- tolower(combinedData.orig$NeighborhoodFinalized)
 distanceData.orig$nimiYhd <- factor(tolower(distanceData.orig$nimiYhd)); 
 
@@ -60,12 +52,13 @@ set.seed(12345)
 nFakeObs <- 3000;
 
 Intercept_pop_coef <- rnorm(1, mean = 150000, sd = 50000)
-roadDistance_pop_coef <- rnorm(1, mean = -5, sd = 3)
-oceanDistance_pop_coef <- rnorm(1, mean = -5, sd = 3)
+RoadDistance_pop_coef <- rnorm(1, mean = -5, sd = 3)
+OceanDistance_pop_coef <- rnorm(1, mean = -5, sd = 3)
 
-sigma_pop <- 10000 + rhcauchy(n=1, sigma = 10000)
+# sigma_pop <- 10000 + rhcauchy(n=1, sigma = 10000)
+sigma_pop <- rhcauchy(n=1, sigma = 20000)
 
-groupMu <- Intercept_pop_coef + distanceData$oceanDistance*oceanDistance_pop_coef + distanceData$roadDistanceToCenter*roadDistance_pop_coef
+groupMu <- Intercept_pop_coef + distanceData$oceanDistance*OceanDistance_pop_coef + distanceData$roadDistanceToCenter*RoadDistance_pop_coef
 
 groupIntercepts <- rnorm(n = nrow(distanceData), mean = groupMu, sd = sigma_pop)
 
@@ -130,7 +123,7 @@ fakeData <- data.frame(Price = Price.fakeData,
                        NeighborhoodAssignment = groupAssignments);
 
 ###########
-# fitting the model 
+# fitting the model - fake data 
 
 library(rstan)
 model3.stanObj <- stan_model(file = 'model3.stan');
@@ -150,21 +143,45 @@ stanFit.fakeData <- sampling(object = model3.stanObj,
                                          OwnFloor = fakeData$OwnFloor,
                                          SaunaDummy = fakeData$SaunaDummy, 
                                          NeighborhoodAssignment = fakeData$NeighborhoodAssignment),
-                             cores = 4, iter = 1000)
+                             cores = 4)
 print(stanFit.fakeData)
-plot(stanFit.fakeData)
+# plot(stanFit.fakeData)
 traceplot(stanFit.fakeData)
 
 posteriorSamples.fakeData <- as.matrix(stanFit.fakeData)
 
-colnames(posteriorSamples.fakeData)
-
-trueValues <- c(Sqm_coef, CondGoodDummySqm_coef, Age_coef, TwoRoomsDummy_coef, ThreeRoomsDummy_coef, FourRoomsOrMoreDummy_coef, OwnFloor_coef, SaunaDummy_coef, sigma, nu, Intercept_pop_coef, oceanDistance_pop_coef, roadDistance_pop_coef, sigma_pop)
-names(trueValues) <- c("Sqm_coef", "CondGoodDummySqm_coef", "Age_coef", "TwoRoomsDummy_coef", "ThreeRoomsDummy_coef", "FourRoomsOrMoreDummy_coef", "OwnFloor_coef", "SaunaDummy_coef", "sigma", "nu", "Intercept_pop_coef", "oceanDistance_pop_coef", "roadDistance_pop_coef", "sigma_pop")
-
+# checking that mass actually concentrates around the true values... 
+trueValues <- c(Sqm_coef,
+                CondGoodDummySqm_coef,
+                Age_coef,
+                TwoRoomsDummy_coef,
+                ThreeRoomsDummy_coef,
+                FourRoomsOrMoreDummy_coef,
+                SaunaDummy_coef,
+                OwnFloor_coef,
+                sigma,
+                nu,
+                Intercept_pop_coef,
+                RoadDistance_pop_coef,
+                OceanDistance_pop_coef,
+                sigma_pop)
+names(trueValues) <- c("Sqm_coef",
+                       "CondGoodDummySqm_coef",
+                       "Age_coef",
+                       "TwoRoomsDummy_coef",
+                       "ThreeRoomsDummy_coef",
+                       "FourRoomsOrMoreDummy_coef",
+                       "SaunaDummy_coef",
+                       "OwnFloor_coef",
+                       "sigma",
+                       "nu",
+                       "Intercept_pop_coef",
+                       "RoadDistance_pop_coef",
+                       "OceanDistance_pop_coef",
+                       "sigma_pop")
 
 for(k in 1:length(trueValues)) {
-  hist(posteriorSamples.fakeData[,k], main = colnames(posteriorSamples.fakeData)[k])
+  hist(posteriorSamples.fakeData[,names(trueValues)[k]], main = names(trueValues)[k])
   cat("parameter", names(trueValues)[k], "value", trueValues[k], "\n")
   abline(v = trueValues[k], col = 'red', lty = 2, lwd = 2)
   checkEnd <- readline(prompt = "q to end: "); 
@@ -174,24 +191,15 @@ for(k in 1:length(trueValues)) {
   }
 }
 
-for(k in 3187:(3187 + 171)) {
-  hist(posteriorSamples.fakeData[,k], main = colnames(posteriorSamples.fakeData)[k])
-  abline(v = groupIntercepts[k - 3186], col = 'red', lty = 2, lwd = 2)
-  checkEnd <- readline(prompt = "q to end: "); 
-  
-  if(checkEnd == 'q') {
-    break; 
-  }
-}
-
-
 
 # checking loo statistics
 library(loo)
 looObj.fakeData <- loo(stanFit.fakeData)
 looObj.fakeData
 
-# true data
+###########
+# fitting the model - true data 
+
 set.seed(123); 
 testSetIndeces <- sample(1:nrow(combinedData.orig), round(0.3*nrow(combinedData.orig)), replace = F)
 
@@ -215,10 +223,7 @@ stanFit.trueData <- sampling(object = model3.stanObj,
                                          NeighborhoodAssignment = estimationSet$NeighborhoodAssignment), 
                              iter = 4000,
                              cores = 4,
-                             # iter = 500,
-                             # cores = 4,
-                             seed = 1234,
-                             control = list(max_treedepth = 15))
+                             seed = 1234)
 print(stanFit.trueData)
 traceplot(stanFit.trueData)
 
@@ -226,43 +231,15 @@ traceplot(stanFit.trueData)
 
 posteriorSamples.trueData <- as.matrix(stanFit.trueData)
 
-k <- 1; 
-# k <- 3921;
-while(T) {
-  hist(posteriorSamples.trueData[,k], main = colnames(posteriorSamples.trueData)[k])
-  readline(prompt = "traceplot next...")
-  plot(traceplot(stanFit.trueData, par = colnames(posteriorSamples.trueData)[k]))
-  
-  checkEnd <- readline(prompt = "q to end: "); 
-  if(checkEnd == 'q') {
-    break; 
-  }
-  k <- k + 1; 
-}
+############################################################################################################
+# loo statistics necessary for model comparions and calculating stacking weights 
 
-# loo statistics
+
 looObj.trueData <- loo(stanFit.trueData)
 looObj.trueData
 
-# colnames(posteriorSamples.trueData)
-# calculated from Intercept_coef = Intercept_pop + OceanDistance*OceanDistance_pop + RoadDistance*RoadDistance_pop + Intercept_offset*sigma_pop; 
-# grep("Intercept", colnames(posteriorSamples.trueData), value=T)
-# InterceptPopConstantTerm.postDraw <- matrix(posteriorSamples.trueData[,grep("Intercept_pop", colnames(posteriorSamples.trueData), value=T)], ncol = 1); 
-# constTermContribution <- InterceptPopConstantTerm.postDraw %*% matrix(rep(1,nrow(distanceData)), nrow = 1)
-# OceanDistance.postDraw <- matrix(posteriorSamples.trueData[,grep("Ocean", colnames(posteriorSamples.trueData), value=T)], ncol = 1) 
-# oceanDistanceValues <- matrix(distanceData$oceanDistance, nrow = 1); 
-# oceanDistanceContribution <- OceanDistance.postDraw %*% oceanDistanceValues
-# RoadDistance.postDraw <- matrix(posteriorSamples.trueData[,grep("Road", colnames(posteriorSamples.trueData), value=T)], ncol = 1); 
-# roadDistanceValues <- matrix(distanceData$roadDistanceToCenter, nrow = 1); 
-# roadDistanceContribution <- RoadDistance.postDraw %*% roadDistanceValues
-# Intercept_offsets <- posteriorSamples.trueData[,grep("Intercept_offset", colnames(posteriorSamples.trueData), value=T)]
-# sigma_pop.postDraw <- posteriorSamples.trueData[,grep("sigma_pop", colnames(posteriorSamples.trueData), value=T)]
-# errorTermPop <- Intercept_offsets*sigma_pop.postDraw
-# Intercept_coef.FromComponents <- constTermContribution + oceanDistanceContribution + roadDistanceContribution + errorTermPop;
-
-# retrieved from Intercept_coef
-# Intercept_coef.FromStan <- posteriorSamples.trueData[,grep("Intercept_coef", colnames(posteriorSamples.trueData), value=T)]
-# Intercept_coef.FromComponents - Intercept_coef.FromStan
+############################################################################################################
+# functions for generating poterior predictive functions for model stacking  
 
 getPosteriorPredictiveDraws <- function(dataSet, 
                                         distanceDataSet, 
@@ -290,6 +267,15 @@ getPosteriorPredictiveDraws <- function(dataSet,
   
   return(predictiveDraws)
 }
+
+
+############################################################################################################
+# storing posterior draws, loo object, function for drawing from posterior predictice distribution for further use   
+
+save.image("modelFit3.RData");
+
+############################################################################################################
+
 
 
 # estimation set means

@@ -1,5 +1,4 @@
 
-
 data {
   int<lower=1> N;
   
@@ -18,6 +17,7 @@ data {
   
   int NeighborhoodAssignment[N]; 
 }
+
 parameters{
   // group-invariant coeffients
   real Age_coef;
@@ -42,65 +42,89 @@ parameters{
   real Mu_Sqm_coef;
   real Mu_CondGoodSqm_coef;
   
-  // "realized", group varying coefficients for each neighborhood
-  vector[3] v_VaryingSlopes[N_neighborhood];
+  // offsets for non-centered parameterization for the varying intercept, slopes
+  vector[3] offset[N_neighborhood];
 }
-
 transformed parameters{
   vector<lower=0>[3] sigma_Neighborhood;
   vector[3] Mu_VaryingSlopes;
-  cov_matrix[3] SRS_sigma;
+  
+  // https://mc-stan.org/docs/2_18/stan-users-guide/reparameterization-section.html
+  matrix[3,3] Rho_choleskyFactor; 
   
   /* EV for slopes */ 
   Mu_VaryingSlopes[1] = Mu_Intercept_coef;
   Mu_VaryingSlopes[2] = Mu_Sqm_coef; 
   Mu_VaryingSlopes[3] = Mu_CondGoodSqm_coef; 
   
-  
   /* Sigma for slopes */ 
   sigma_Neighborhood[1] = Sigma_Intercept_coef;
   sigma_Neighborhood[2] = Sigma_Sqm_coef;
   sigma_Neighborhood[3] = Sigma_CondGoodSqm_coef; 
   
-  SRS_sigma = quad_form_diag(Rho, sigma_Neighborhood);
+  Rho_choleskyFactor = cholesky_decompose(Rho);
 }
+
 model{
   vector[N] mu;
+  vector[3] VaryingSlopes[N_neighborhood];
   
-  /*
-    https://mc-stan.org/docs/2_19/stan-users-guide/multivariate-hierarchical-priors-section.html
-    
-    The basic behavior of the LKJ correlation distribution is similar to that of a beta distribution. For η=1, the result is a uniform distribution. Despite being the identity over correlation matrices, the marginal distribution over the entries in that matrix (i.e., the correlations) is not uniform between -1 and 1. Rather, it concentrates around zero as the dimensionality increases due to the complex constraints. 
-    
-    For η>1, the density increasingly concentrates mass around the unit matrix, i.e., favoring less correlation. For η<1, it increasingly concentrates mass in the other direction, i.e., favoring more correlation.
-
-The LKJ prior may thus be used to control the expected amount of correlation among the parameters βj. For a discussion of decomposing a covariance prior into a prior on correlation matrices and an independent prior on scales, see Barnard, McCulloch, and Meng (2000).
-    
-  */
+  /*****************************************************/
+  
+  // priors for varying intercept, slope
+  Rho ~ lkj_corr( 2 ); //     https://mc-stan.org/docs/2_19/stan-users-guide/multivariate-hierarchical-priors-section.html
+  
   Mu_Intercept_coef ~ normal(50000, 50000); 
   Mu_Sqm_coef ~ normal(4000, 1000);
   Mu_CondGoodSqm_coef ~ normal(1000, 1000);
-  
-  
-  Rho ~ lkj_corr( 2 );
   
   Sigma_Intercept_coef ~ cauchy(0, 7000);
   Sigma_Sqm_coef ~ cauchy(0, 1500);
   Sigma_CondGoodSqm_coef ~ cauchy(0, 350);
   
-  
-  // Mu_Varying  compiled from Mu_Intercept_coef, Mu_Sqm_coef, Mu_CondGoodSqm_coef in transformed parameters-block
-  // SRS_sigma compiled from Sigma_Intercept_coef, Sigma_Sqm_coef, Sigma_CondGoodSqm_coef, Rho in transformed parameters-block
-
-  v_VaryingSlopes ~ multi_normal( Mu_VaryingSlopes , SRS_sigma);
-  
-  for ( i in 1:N ) {
-    mu[i] = v_VaryingSlopes[NeighborhoodAssignment[i],1] + v_VaryingSlopes[NeighborhoodAssignment[i],2]*Sqm[i] + v_VaryingSlopes[NeighborhoodAssignment[i],3]*CondGoodDummySqm[i] + Age_coef*Age[i] + TwoRoomsDummy_coef*TwoRoomsDummy[i] + ThreeRoomsDummy_coef*ThreeRoomsDummy[i] + FourRoomsOrMoreDummy_coef*FourRoomsOrMoreDummy[i] + SaunaDummy_coef*SaunaDummy[i] + OwnFloor_coef*OwnFloor[i];
+  // non-centered parameterization for the varying intercept, slopes
+  for(k in 1:N_neighborhood) {
+    offset[k] ~ std_normal();
+    
+    VaryingSlopes[k] =  Mu_VaryingSlopes + sigma_Neighborhood .* (Rho_choleskyFactor * offset[k]);  
   }
   
+  /*****************************************************/
+  
+  // priors for group-invariant coefficients
+  Age_coef  ~ normal(-2000, 1500);
+  TwoRoomsDummy_coef  ~ normal(5000, 5000);
+  ThreeRoomsDummy_coef ~ normal(7500, 5000);
+  FourRoomsOrMoreDummy_coef ~ normal(7500, 5000);
+  SaunaDummy_coef ~ normal(5000, 2500);
+  OwnFloor_coef ~ normal(1000, 1000); 
+  
+  // priors for the variance terms in the likelihood 
   sigma ~ cauchy(0, 15000);
   nu ~ gamma(2, 0.1); 
 
+  // calculation of EVs for the likelihood 
+  for ( i in 1:N ) {
+    mu[i] = VaryingSlopes[NeighborhoodAssignment[i],1] + VaryingSlopes[NeighborhoodAssignment[i],2]*Sqm[i] + VaryingSlopes[NeighborhoodAssignment[i],3]*CondGoodDummySqm[i] + Age_coef*Age[i] + TwoRoomsDummy_coef*TwoRoomsDummy[i] + ThreeRoomsDummy_coef*ThreeRoomsDummy[i] + FourRoomsOrMoreDummy_coef*FourRoomsOrMoreDummy[i] + SaunaDummy_coef*SaunaDummy[i] + OwnFloor_coef*OwnFloor[i];
+  }
+  
   // likelihood
-  Price ~ student_t(nu, mu, sigma); 
+  Price ~ student_t(nu, mu, sigma);
 }
+generated quantities {
+  vector[N] log_lik;
+  vector[3] VaryingSlopes[N_neighborhood];
+
+  for(k in 1:N_neighborhood) {
+    VaryingSlopes[k] =  Mu_VaryingSlopes + sigma_Neighborhood .* (Rho_choleskyFactor * offset[k]);  
+  }
+  
+  // for loo-package
+  for(k in 1:N) {
+    log_lik[k] = student_t_lpdf(Price[k] | nu, VaryingSlopes[NeighborhoodAssignment[k],1] + VaryingSlopes[NeighborhoodAssignment[k],2]*Sqm[k] + VaryingSlopes[NeighborhoodAssignment[k],3]*CondGoodDummySqm[k] + Age_coef*Age[k] + TwoRoomsDummy_coef*TwoRoomsDummy[k] + ThreeRoomsDummy_coef*ThreeRoomsDummy[k] + FourRoomsOrMoreDummy_coef*FourRoomsOrMoreDummy[k] + SaunaDummy_coef*SaunaDummy[k] + OwnFloor_coef*OwnFloor[k], sigma); 
+  }
+}
+
+
+
+
