@@ -378,8 +378,8 @@ $(document).ready(function () {
 </div>
 
 
-<div id="variable-descriptions-s" class="section level2">
-<h2>Variable descriptions s</h2>
+<div id="variable-descriptions" class="section level2">
+<h2>Variable descriptions</h2>
 <p>For observation <span class="math inline">\(i\)</span>, term</p>
 <ol style="list-style-type: decimal">
 <li><span class="math inline">\(\text{Sqm}_i\)</span> is the size of the apartment measured in square meters,</li>
@@ -397,38 +397,131 @@ $(document).ready(function () {
 <ol start="8" style="list-style-type: decimal">
 <li><span class="math inline">\(\text{SaunaDummy}_i\)</span> is a dummy variable describing whether the apartment was listed to have a sauna.</li>
 </ol>
-<p>Next, for models 2-5, the term <span class="math inline">\(\text{Neighborhood}_i\)</span> describes in which neighborhood the apartment is located. The possible values for <span class="math inline">\(\text{Neighborhood}_i\)</span> range from 1 to 130.</p>
+<p>Model 3 utilizes the ocean and road distances for the group level mean. For neighborhood <span class="math inline">\(j\)</span>, term</p>
+<ol style="list-style-type: decimal">
+<li><span class="math inline">\(\text{OceanDistance}_j\)</span> is the distance of the neighborhood centroid to the ocean polygon ‘as the crow flies’, i.e. a direct distance,</li>
+</ol>
+<p>and</p>
+<ol start="2" style="list-style-type: decimal">
+<li><span class="math inline">\(\text{RoadDistance}_j\)</span> is the distance of the neighborhood centroid to a point representing the center of Helsinki along the road network.</li>
+</ol>
+<p>Both terms <span class="math inline">\(\text{OceanDistance}_j\)</span> and <span class="math inline">\(\text{RoadDistance}_j\)</span> are measured in meters.</p>
+<p>Model 4 utilizes inter-centroid distances. The direct distance between the centroids of neighborhoods <span class="math inline">\(i\)</span> and <span class="math inline">\(j\)</span> is denoted by the term <span class="math inline">\(D_{ij}\)</span>. These distancers are measured in kilometers.</p>
 <p>Finally, <span class="math inline">\(\text{Price}_i\)</span> is the sales price for observation <span class="math inline">\(i\)</span>.</p>
 </div>
-<div id="general-approach-for-choosing-priors" class="section level2">
-<h2>General approach for choosing priors</h2>
+<div id="chosen-approach-for-choosing-priors" class="section level2">
+<h2>Chosen approach for choosing priors</h2>
 <p>The priors for the parameters were not chosen on any domain-specific expertise about the expected size of effects etc. The approach was rather first deciding the expected direction of the effect on price for each of the variables. Then the values for the expected values and for the dispersions parameters were chosen by simulating data from the joint distribution with these values: If the histograms of the generated sales prices were ‘roughly’ reasonable over many simulations, the values were seen as acceptable (Data generated with this approach and this joint distribution aslo generated negative sales parameters which could be seen as a weakness).</p>
 <p>The prior for the <span class="math inline">\(\nu\)</span>-parameter was chosen on the basis of suggestions from mcstan.org for Student’s t distributions.</p>
 </div>
 <div id="model-1" class="section level2">
 <h2>Model 1</h2>
-<p>Priors</p>
-<p><span class="math inline">\(\beta_{\text{Intercept}} \sim \text{N}(70000, 50000) \\ \beta_{\text{Sqm}} \sim \text{N}(4500, 1000) \\ \beta_{\text{Sqm, Good Condition}} \sim \text{N}(1000, 1000) \\ \beta_{\text{Age}} \sim \text{N}(-1500, 2000) \\ \beta_{\text{TwoRoomsDummy}} \sim \text{N}(5000, 10000) \\ \beta_{\text{ThreeRoomsDummy}} \sim \text{N}(7500, 10000) \\ \beta_{\text{FourRoomsOrMoreDummy}} \sim \text{N}(7500, 10000) \\ \beta_{\text{OwnFloor}} \sim \text{N}(7000, 1000) \\ \beta_{\text{SaunaDummy}} \sim \text{N}(5000, 2500) \\ \sigma \sim \text{Half-Cauchy}(15000) \\ \nu \sim \text{Gamma}(2, 0.1)\)</span></p>
-<p>Expected value <span class="math inline">\(\mu_i\)</span> for observation <span class="math inline">\(i\)</span></p>
+<div id="priors" class="section level3">
+<h3>Priors</h3>
+<p><span class="math inline">\(\beta_{\text{Intercept}} \sim \text{N}(70000, 50000^2) \\ \beta_{\text{Sqm}} \sim \text{N}(4500, 1000^2) \\ \beta_{\text{Sqm, Good Condition}} \sim \text{N}(1000, 1000^2) \\ \beta_{\text{Age}} \sim \text{N}(-1500, 2000^2) \\ \beta_{\text{TwoRoomsDummy}} \sim \text{N}(5000, 10000^2) \\ \beta_{\text{ThreeRoomsDummy}} \sim \text{N}(7500, 10000^2) \\ \beta_{\text{FourRoomsOrMoreDummy}} \sim \text{N}(7500, 10000^2) \\ \beta_{\text{OwnFloor}} \sim \text{N}(7000, 1000^2) \\ \beta_{\text{SaunaDummy}} \sim \text{N}(5000, 2500^2) \\ \sigma \sim \text{HalfCauchy}(15000) \\ \nu \sim \text{Gamma}(2, 0.1)\)</span></p>
+</div>
+<div id="expected-value-mu_i-for-observation-i" class="section level3">
+<h3>Expected value <span class="math inline">\(\mu_i\)</span> for observation <span class="math inline">\(i\)</span></h3>
 <p><span class="math inline">\(\mu_i = \beta_{\text{Intercept}} + \beta_{\text{Sqm}} \text{Sqm}_i + \beta_{\text{Sqm, Good Condition}} \text{GoodConditionSqm}_i + \beta_{\text{Age}} \text{Age}_i + \beta_{\text{TwoRoomsDummy}} \text{TwoRoomsDummy}_i + \\ \qquad{ } \beta_{\text{ThreeRoomsDummy}} \text{ThreeRoomsDummy}_i + \beta_{\text{FourRoomsOrMoreDummy}} \text{FourRoomsOrModeDummy}_i + \beta_{\text{OwnFloor}} \text{OwnFloor}_i + \\ \qquad{ } \beta_{\text{SaunaDummy}} \text{SaunaDummy}_i\)</span></p>
-<p>Likelihood (generalized Student’s t)</p>
-<p><span class="math inline">\(\text{Price}_i \sim t_\nu(\mu, \sigma)\)</span></p>
+</div>
+<div id="likelihood-generalized-students-t" class="section level3">
+<h3>Likelihood (generalized Student’s t)</h3>
+<p><span class="math inline">\(\text{Price}_i \sim t_\nu(\mu_i, \sigma)\)</span></p>
+</div>
 </div>
 <div id="model-2" class="section level2">
 <h2>Model 2</h2>
-<p>Group varying coefficients over neighborhoods</p>
-<p><span class="math inline">\(\mu_{\text{Intercept}} \sim \text{N}(50000, 50000) \\ \sigma_{\text{Intercept}} \sim \text{Half-Cauchy}(11000) \\ \beta_{\text{Intercept}, j }\)</span></p>
-<p>$\ \ (<em>{}, ^2</em>{}), j = 1, , 130 $</p>
-<p>Priors</p>
-<p>$ <em>{} (4500, 1000) \ </em>{} (1000, 1000) \ <em>{} (-1500, 2000) \ </em>{} (5000, 10000) \ <em>{} (7500, 10000) \ </em>{} (7500, 10000) \ <em>{} (7000, 1000) \ </em>{} (5000, 2500) \ (15000) \ (2, 0.1)$</p>
-<p>Expected value <span class="math inline">\(\mu_i\)</span> for observation <span class="math inline">\(i\)</span></p>
-<p><span class="math inline">\(\mu_i = \beta_{\text{Intercept}} + \beta_{\text{Sqm}} \text{Sqm}_i + \beta_{\text{Sqm, Good Condition}} \text{GoodConditionSqm}_i + \beta_{\text{Age}} \text{Age}_i + \beta_{\text{TwoRoomsDummy}} \text{TwoRoomsDummy}_i + \\ \qquad{ } \beta_{\text{ThreeRoomsDummy}} \text{ThreeRoomsDummy}_i + \beta_{\text{FourRoomsOrMoreDummy}} \text{FourRoomsOrModeDummy}_i + \beta_{\text{OwnFloor}} \text{OwnFloor}_i + \\ \qquad{ } \beta_{\text{SaunaDummy}} \text{SaunaDummy}_i\)</span></p>
-<p>Likelihood (generalized Student’s t)</p>
-<p><span class="math inline">\(\text{Price}_i \sim t_\nu(\mu, \sigma)\)</span></p>
+<div id="group-varying-coefficients-over-neighborhoods" class="section level3">
+<h3>Group varying coefficients over neighborhoods</h3>
+<p><span class="math inline">\(\mu_{\text{Intercept}} \sim \text{N}(50000, 50000^2) \\ \sigma_{\text{Intercept}} \sim \text{HalfCauchy}(11000) \\ \beta_{\text{Intercept}, j } \sim \text{N}(\mu_{\text{Intercept}}, \sigma^2_{\text{Intercept}}), j = 1, \ldots, 130\)</span></p>
+</div>
+<div id="priors-1" class="section level3">
+<h3>Priors</h3>
+<p><span class="math inline">\(\beta_{\text{Sqm}} \sim \text{N}(4000, 1000^2) \\ \beta_{\text{Sqm, Good Condition}} \sim \text{N}(1000, 1000^2) \\ \beta_{\text{Age}} \sim \text{N}(-1500, 2000^2) \\ \beta_{\text{TwoRoomsDummy}} \sim \text{N}(5000, 10000^2) \\ \beta_{\text{ThreeRoomsDummy}} \sim \text{N}(7500, 10000^2) \\ \beta_{\text{FourRoomsOrMoreDummy}} \sim \text{N}(7500, 10000^2) \\ \beta_{\text{OwnFloor}} \sim \text{N}(7000, 1000^2) \\ \beta_{\text{SaunaDummy}} \sim \text{N}(5000, 2500^2) \\ \sigma \sim \text{HalfCauchy}(15000) \\ \nu \sim \text{Gamma}(2, 0.1)\)</span></p>
+</div>
+<div id="expected-value-mu_i-for-observation-i-1" class="section level3">
+<h3>Expected value <span class="math inline">\(\mu_i\)</span> for observation <span class="math inline">\(i\)</span></h3>
+<p><span class="math inline">\(\mu_i = \beta_{\text{Intercept}, j[i]} + \beta_{\text{Sqm}} \text{Sqm}_i + \beta_{\text{Sqm, Good Condition}} \text{GoodConditionSqm}_i + \beta_{\text{Age}} \text{Age}_i + \beta_{\text{TwoRoomsDummy}} \text{TwoRoomsDummy}_i + \\ \qquad{ } \beta_{\text{ThreeRoomsDummy}} \text{ThreeRoomsDummy}_i + \beta_{\text{FourRoomsOrMoreDummy}} \text{FourRoomsOrModeDummy}_i + \beta_{\text{OwnFloor}} \text{OwnFloor}_i + \\ \qquad{ } \beta_{\text{SaunaDummy}} \text{SaunaDummy}_i\)</span></p>
+</div>
+<div id="likelihood-generalized-students-t-1" class="section level3">
+<h3>Likelihood (generalized Student’s t)</h3>
+<p><span class="math inline">\(\text{Price}_i \sim t_\nu(\mu_i, \sigma)\)</span></p>
+</div>
 </div>
 <div id="model-3" class="section level2">
 <h2>Model 3</h2>
-<p>TBA</p>
+<div id="group-varying-coefficients-over-neighborhoods-1" class="section level3">
+<h3>Group varying coefficients over neighborhoods</h3>
+<p><span class="math inline">\(\alpha_{\text{Intercept}} \sim \text{N}(150000, 50000^2) \\ \alpha_{\text{OceanDistance}} \sim \text{N}(-5, 3^2) \\ \alpha_{\text{RoadDistance}} \sim \text{N}(-5, 3^2) \\ \sigma_{\text{Intercept}} \sim \text{HalfCauchy}(20000) \\ \beta_{\text{Intercept}, j } \sim \text{N}(\alpha_{\text{Intercept}} + \alpha_{\text{OceanDistance}} \text{OceanDistance}_j + \alpha_{\text{RoadDistance}} \text{RoadDistance}_j, \sigma^2_{\text{Intercept}}), j = 1, \ldots, 130\)</span></p>
+</div>
+<div id="priors-2" class="section level3">
+<h3>Priors</h3>
+<p><span class="math inline">\(\beta_{\text{Sqm}} \sim \text{N}(5000, 1000^2) \\ \beta_{\text{Sqm, Good Condition}} \sim \text{N}(2000, 1000^2) \\ \beta_{\text{Age}} \sim \text{N}(-1000, 1000^2) \\ \beta_{\text{TwoRoomsDummy}} \sim \text{N}(5000, 10000^2) \\ \beta_{\text{ThreeRoomsDummy}} \sim \text{N}(7500, 10000^2) \\ \beta_{\text{FourRoomsOrMoreDummy}} \sim \text{N}(7500, 10000^2) \\ \beta_{\text{OwnFloor}} \sim \text{N}(1000, 1000^2) \\ \beta_{\text{SaunaDummy}} \sim \text{N}(5000, 2500^2) \\ \sigma \sim \text{HalfCauchy}(15000) \\ \nu \sim \text{Gamma}(2, 0.1)\)</span></p>
+</div>
+<div id="expected-value-mu_i-for-observation-i-2" class="section level3">
+<h3>Expected value <span class="math inline">\(\mu_i\)</span> for observation <span class="math inline">\(i\)</span></h3>
+<p><span class="math inline">\(\mu_i = \beta_{\text{Intercept}, j[i]} + \beta_{\text{Sqm}} \text{Sqm}_i + \beta_{\text{Sqm, Good Condition}} \text{GoodConditionSqm}_i + \beta_{\text{Age}} \text{Age}_i + \beta_{\text{TwoRoomsDummy}} \text{TwoRoomsDummy}_i + \\ \qquad{ } \beta_{\text{ThreeRoomsDummy}} \text{ThreeRoomsDummy}_i + \beta_{\text{FourRoomsOrMoreDummy}} \text{FourRoomsOrModeDummy}_i + \beta_{\text{OwnFloor}} \text{OwnFloor}_i + \\ \qquad{ } \beta_{\text{SaunaDummy}} \text{SaunaDummy}_i\)</span></p>
+</div>
+<div id="likelihood-generalized-students-t-2" class="section level3">
+<h3>Likelihood (generalized Student’s t)</h3>
+<p><span class="math inline">\(\text{Price}_i \sim t_\nu(\mu_i, \sigma)\)</span></p>
+</div>
+</div>
+<div id="model-4" class="section level2">
+<h2>Model 4</h2>
+<div id="group-varying-coefficients-over-neighborhoods-2" class="section level3">
+<h3>Group varying coefficients over neighborhoods</h3>
+<p><span class="math inline">\(\beta_{\text{Intercept}} \sim \text{MVNormal}([70, \ldots, 70]',\)</span><strong><em><span class="math inline">\(\text{K}\)</span></em></strong><span class="math inline">\()\)</span></p>
+<p>such that</p>
+<p><span class="math inline">\(K_{ij} = \eta^2 \text{exp}(-\rho^2 D^2_{ij}) + \delta_{ij} \ 0.01\)</span></p>
+<p>Priors for variance terms at group-level</p>
+<p><span class="math inline">\(\rho^2 \sim \text{HalfCauchy}(1) \\ \eta^2 \sim \text{HalfCauchy}(300)\)</span></p>
+</div>
+<div id="priors-3" class="section level3">
+<h3>Priors</h3>
+<p><span class="math inline">\(\beta_{\text{Sqm}} \sim \text{N}(6000, 3000^2) \\ \beta_{\text{Sqm, Good Condition}} \sim \text{N}(1000, 1500^2) \\ \beta_{\text{Age}} \sim \text{N}(-2000, 2500^2) \\ \beta_{\text{TwoRoomsDummy}} \sim \text{N}(5000, 10000^2) \\ \beta_{\text{ThreeRoomsDummy}} \sim \text{N}(7500, 10000^2) \\ \beta_{\text{FourRoomsOrMoreDummy}} \sim \text{N}(7500, 10000^2) \\ \beta_{\text{OwnFloor}} \sim \text{N}(1000, 1000^2) \\ \beta_{\text{SaunaDummy}} \sim \text{N}(5000, 2500^2) \\ \sigma \sim \text{HalfCauchy}(15000) \\ \nu \sim \text{Gamma}(2, 0.1)\)</span></p>
+</div>
+<div id="expected-value-mu_i-for-observation-i-3" class="section level3">
+<h3>Expected value <span class="math inline">\(\mu_i\)</span> for observation <span class="math inline">\(i\)</span></h3>
+<p><span class="math inline">\(\mu_i = 1000 \cdot \beta_{\text{Intercept}, j[i]} + \beta_{\text{Sqm}} \text{Sqm}_i + \beta_{\text{Sqm, Good Condition}} \text{GoodConditionSqm}_i + \beta_{\text{Age}} \text{Age}_i + \beta_{\text{TwoRoomsDummy}} \text{TwoRoomsDummy}_i + \\ \qquad{ } \beta_{\text{ThreeRoomsDummy}} \text{ThreeRoomsDummy}_i + \beta_{\text{FourRoomsOrMoreDummy}} \text{FourRoomsOrModeDummy}_i + \beta_{\text{OwnFloor}} \text{OwnFloor}_i + \\ \qquad{ } \beta_{\text{SaunaDummy}} \text{SaunaDummy}_i\)</span></p>
+</div>
+<div id="likelihood-generalized-students-t-3" class="section level3">
+<h3>Likelihood (generalized Student’s t)</h3>
+<p><span class="math inline">\(\text{Price}_i \sim t_\nu(\mu_i, \sigma)\)</span></p>
+</div>
+</div>
+<div id="model-5" class="section level2">
+<h2>Model 5</h2>
+<div id="group-varying-coefficients-over-neighborhoods-3" class="section level3">
+<h3>Group varying coefficients over neighborhoods</h3>
+<p><span class="math inline">\(\alpha \sim \text{MVNormal}( \mu_{\text{coef}}, \text{S})\)</span></p>
+<p>where</p>
+<p><span class="math inline">\(\mu_{\text{coef}} = [\mu_{\text{coef},1}, \mu_{\text{coef},2}, \mu_{\text{coef},3}]\)</span> s.t.</p>
+<ol style="list-style-type: decimal">
+<li><span class="math inline">\(\mu_{\text{coef},1} \sim \text{N}(50000, 50000^2)\)</span></li>
+<li><span class="math inline">\(\mu_{\text{coef},2} \sim \text{N}(4000, 1000^2)\)</span></li>
+<li><span class="math inline">\(\mu_{\text{coef},3} \sim \text{N}(1000, 1000^2)\)</span></li>
+</ol>
+<p>and <span class="math inline">\(\text{S} = \text{Diag}(\sigma_{\text{coef}})\  R\  \text{Diag}(\sigma_{\text{coef}}), \  \sigma_{\text{coef}} = [\sigma_{\text{coef},1}, \sigma_{\text{coef},2}, \sigma_{\text{coef},3}]\)</span> s.t.</p>
+<ol style="list-style-type: decimal">
+<li><span class="math inline">\(R \sim \text{LKJcorr}(2)\)</span></li>
+<li><span class="math inline">\(\sigma_{\text{coef},1} \sim \text{HalfCauchy}(7000)\)</span></li>
+<li><span class="math inline">\(\sigma_{\text{coef},2} \sim \text{HalfCauchy}(1500)\)</span></li>
+<li><span class="math inline">\(\sigma_{\text{coef},3} \sim \text{HalfCauchy}(350)\)</span></li>
+</ol>
+</div>
+<div id="priors-4" class="section level3">
+<h3>Priors</h3>
+<p><span class="math inline">\(\beta_{\text{Age}} \sim \text{N}(-2000, 1500^2) \\ \beta_{\text{TwoRoomsDummy}} \sim \text{N}(5000, 5000^2) \\ \beta_{\text{ThreeRoomsDummy}} \sim \text{N}(7500, 5000^2) \\ \beta_{\text{FourRoomsOrMoreDummy}} \sim \text{N}(7500, 5000^2) \\ \beta_{\text{OwnFloor}} \sim \text{N}(1000, 1000^2) \\ \beta_{\text{SaunaDummy}} \sim \text{N}(5000, 2500^2) \\ \sigma \sim \text{HalfCauchy}(15000) \\ \nu \sim \text{Gamma}(2, 0.1)\)</span></p>
+</div>
+<div id="expected-value-mu_i-for-observation-i-4" class="section level3">
+<h3>Expected value <span class="math inline">\(\mu_i\)</span> for observation <span class="math inline">\(i\)</span></h3>
+<p><span class="math inline">\(\mu_i = \alpha_{1, j[i]} + \alpha_{2, j[i]} \text{Sqm}_i + \alpha_{3, j[i]} \text{GoodConditionSqm}_i + \beta_{\text{Age}} \text{Age}_i + \beta_{\text{TwoRoomsDummy}} \text{TwoRoomsDummy}_i + \\ \qquad{ } \beta_{\text{ThreeRoomsDummy}} \text{ThreeRoomsDummy}_i + \beta_{\text{FourRoomsOrMoreDummy}} \text{FourRoomsOrModeDummy}_i + \beta_{\text{OwnFloor}} \text{OwnFloor}_i + \\ \qquad{ } \beta_{\text{SaunaDummy}} \text{SaunaDummy}_i\)</span></p>
+</div>
+<div id="likelihood-generalized-students-t-4" class="section level3">
+<h3>Likelihood (generalized Student’s t)</h3>
+<p><span class="math inline">\(\text{Price}_i \sim t_\nu(\mu_i, \sigma)\)</span></p>
+</div>
 </div>
 
 

@@ -8,7 +8,6 @@ setwd('/home/asdf/Desktop/gradu/git/housingprices/model 3 varying intercept mode
 rm(list=ls()); gc(); 
 # load(file = 'modelFit3.RData')
 
-
 combinedData.orig <- read.csv2("finalizedData29122018.csv")
 
 nrow(combinedData.orig)
@@ -18,6 +17,7 @@ nrow(combinedData.orig)
 
 # alppila renamed to "alppiharju"
 combinedData.orig$NeighborhoodFinalized[combinedData.orig$NeighborhoodFinalized == "Alppila"] <- "Alppiharju";
+combinedData.orig$NeighborhoodFinalized <- factor(combinedData.orig$NeighborhoodFinalized); 
 
 # distance data 
 distanceData.orig <- read.csv("oceanDistancesComplete.csv")
@@ -34,7 +34,6 @@ distanceData <- data.frame(identifier = distanceData.orig$nimiYhd,
 
 distanceData <- distanceData[order(as.numeric(distanceData$identifier)),]
 
-
 combinedData <- data.frame(Price = combinedData.orig$Price, 
                            Sqm = combinedData.orig$SquareMeters,
                            CondGoodDummySqm = combinedData.orig$ConditionGoodDummy*combinedData.orig$SquareMeters,
@@ -45,7 +44,6 @@ combinedData <- data.frame(Price = combinedData.orig$Price,
                            OwnFloor = combinedData.orig$ownFloor.fixed,
                            SaunaDummy = combinedData.orig$SaunaDummy,
                            NeighborhoodAssignment = as.numeric(combinedData.orig$NeighborhoodFinalized));
-
 
 ############################
 # fake data generation
@@ -153,45 +151,45 @@ traceplot(stanFit.fakeData)
 posteriorSamples.fakeData <- as.matrix(stanFit.fakeData)
 
 # checking that mass actually concentrates around the true values... 
-trueValues <- c(Sqm_coef,
-                CondGoodDummySqm_coef,
-                Age_coef,
-                TwoRoomsDummy_coef,
-                ThreeRoomsDummy_coef,
-                FourRoomsOrMoreDummy_coef,
-                SaunaDummy_coef,
-                OwnFloor_coef,
-                sigma,
-                nu,
-                Intercept_pop_coef,
-                RoadDistance_pop_coef,
-                OceanDistance_pop_coef,
-                sigma_pop)
-names(trueValues) <- c("Sqm_coef",
-                       "CondGoodDummySqm_coef",
-                       "Age_coef",
-                       "TwoRoomsDummy_coef",
-                       "ThreeRoomsDummy_coef",
-                       "FourRoomsOrMoreDummy_coef",
-                       "SaunaDummy_coef",
-                       "OwnFloor_coef",
-                       "sigma",
-                       "nu",
-                       "Intercept_pop_coef",
-                       "RoadDistance_pop_coef",
-                       "OceanDistance_pop_coef",
-                       "sigma_pop")
-
-for(k in 1:length(trueValues)) {
-  hist(posteriorSamples.fakeData[,names(trueValues)[k]], main = names(trueValues)[k])
-  cat("parameter", names(trueValues)[k], "value", trueValues[k], "\n")
-  abline(v = trueValues[k], col = 'red', lty = 2, lwd = 2)
-  checkEnd <- readline(prompt = "q to end: "); 
-  
-  if(checkEnd == 'q') {
-    break; 
-  }
-}
+# trueValues <- c(Sqm_coef,
+#                 CondGoodDummySqm_coef,
+#                 Age_coef,
+#                 TwoRoomsDummy_coef,
+#                 ThreeRoomsDummy_coef,
+#                 FourRoomsOrMoreDummy_coef,
+#                 SaunaDummy_coef,
+#                 OwnFloor_coef,
+#                 sigma,
+#                 nu,
+#                 Intercept_pop_coef,
+#                 RoadDistance_pop_coef,
+#                 OceanDistance_pop_coef,
+#                 sigma_pop)
+# names(trueValues) <- c("Sqm_coef",
+#                        "CondGoodDummySqm_coef",
+#                        "Age_coef",
+#                        "TwoRoomsDummy_coef",
+#                        "ThreeRoomsDummy_coef",
+#                        "FourRoomsOrMoreDummy_coef",
+#                        "SaunaDummy_coef",
+#                        "OwnFloor_coef",
+#                        "sigma",
+#                        "nu",
+#                        "Intercept_pop_coef",
+#                        "RoadDistance_pop_coef",
+#                        "OceanDistance_pop_coef",
+#                        "sigma_pop")
+# 
+# for(k in 1:length(trueValues)) {
+#   hist(posteriorSamples.fakeData[,names(trueValues)[k]], main = names(trueValues)[k])
+#   cat("parameter", names(trueValues)[k], "value", trueValues[k], "\n")
+#   abline(v = trueValues[k], col = 'red', lty = 2, lwd = 2)
+#   checkEnd <- readline(prompt = "q to end: "); 
+#   
+#   if(checkEnd == 'q') {
+#     break; 
+#   }
+# }
 
 
 # checking loo statistics
@@ -202,7 +200,7 @@ looObj.fakeData
 ###########
 # fitting the model - true data 
 
-set.seed(123); 
+set.seed(9); 
 testSetIndeces <- sample(1:nrow(combinedData.orig), round(0.3*nrow(combinedData.orig)), replace = F)
 
 estimationSet <- combinedData[-testSetIndeces,]
@@ -236,21 +234,25 @@ posteriorSamples.trueData <- as.matrix(stanFit.trueData)
 ############################################################################################################
 # loo statistics necessary for model comparions and calculating stacking weights 
 
-
 looObj.trueData <- loo(stanFit.trueData)
 looObj.trueData
+
+# used for stacking later 
+pointwiseElpdLooVectorForStacking <- looObj.trueData$pointwise[,"elpd_loo"]; 
 
 ############################################################################################################
 # functions for generating poterior predictive functions for model stacking  
 
-getPosteriorPredictiveDraws <- function(dataSet, 
-                                        distanceDataSet, 
+getPosteriorPredictiveDraws <- function(dataSet,  
                                         postSample, 
                                         likelihoodSigmaName, 
                                         likelihoodNuName) {
   # group intercepts 
   coefDraws <- postSample[,grep("_coef",colnames(postSample))]
   coefDraws <- coefDraws[,-grep("Intercept_coef", colnames(coefDraws))]
+  coefDraws <- coefDraws[,-grep("Distance", colnames(coefDraws))]
+  coefDraws <- coefDraws[,-grep("Intercept_pop", colnames(coefDraws))]
+  
   muData <- dataSet[,substr(colnames(coefDraws), 1, nchar(colnames(coefDraws))-5)]; 
   nonInterceptPredictorContribution <- as.matrix(muData) %*% t(as.matrix(coefDraws))
   
@@ -270,6 +272,38 @@ getPosteriorPredictiveDraws <- function(dataSet,
   return(predictiveDraws)
 }
 
+library(LaplacesDemon) # for the dst-function
+
+evaluatePosteriorPredictive <- function(Price.pointEvaluation,  
+                                        predictiveVariables, 
+                                        postSample, 
+                                        likelihoodSigmaName, 
+                                        likelihoodNuName) {
+  
+  # group intercepts 
+  coefDraws <- postSample[,grep("_coef",colnames(postSample))]
+  coefDraws <- coefDraws[,-grep("Intercept_coef", colnames(coefDraws))]
+  coefDraws <- coefDraws[,-grep("Distance", colnames(coefDraws))]
+  coefDraws <- coefDraws[,-grep("Intercept_pop", colnames(coefDraws))]
+  
+  muData <- predictiveVariables[,substr(colnames(coefDraws), 1, nchar(colnames(coefDraws))-5)]; 
+  nonInterceptPredictorContribution <- as.matrix(muData) %*% t(as.matrix(coefDraws))
+  
+  # adding the intercepts
+  interceptEstimateDraws <- postSample[,grep("Intercept_coef",colnames(postSample))]
+  interceptContribution <- t(interceptEstimateDraws[,predictiveVariables$NeighborhoodAssignment])
+  
+  # final parameters
+  muEstimateDraws <- nonInterceptPredictorContribution + interceptContribution; 
+  
+  sigmaEstimateDraws <- postSample[,likelihoodSigmaName];
+  nuEstimateDraws <- postSample[,likelihoodNuName];
+  
+  lpd <- dst(x = Price.pointEvaluation, mu = muEstimateDraws, sigma = sigmaEstimateDraws, nu = nuEstimateDraws); 
+  
+  return(mean(lpd));
+}
+
 
 ############################################################################################################
 # storing posterior draws, loo object, function for drawing from posterior predictice distribution for further use   
@@ -277,8 +311,55 @@ getPosteriorPredictiveDraws <- function(dataSet,
 save.image("modelFit3.RData");
 
 ############################################################################################################
+# replicated price histograms compared to true price histogram   
 
+dataReplications <- getPosteriorPredictiveDraws(dataSet = estimationSet, 
+                                                postSample = posteriorSamples.trueData, 
+                                                likelihoodSigmaName = "sigma", 
+                                                likelihoodNuName = "nu")
 
+replicatedVector <- dataReplications[10,]
+trueVector <- estimationSet$Price;
+
+hist(replicatedVector)
+hist(trueVector)
+
+hist(replicatedVector[replicatedVector >= quantile(replicatedVector, probs = 0.05) & replicatedVector <= quantile(replicatedVector, probs = 0.95)]);
+hist(trueVector[trueVector >= quantile(trueVector, probs = 0.05) & trueVector <= quantile(trueVector, probs = 0.95)])
+
+# distribution of mean, median, standard deviation of  prices  
+
+replicatedPrices.max <- apply(dataReplications, 1, max);
+summary(replicatedPrices.max)
+hist(replicatedPrices.max)
+abline(v = max(estimationSet$Price), col = 'red', lwd = 1, lty = 2)
+
+hist(replicatedPrices.max[replicatedPrices.max <= quantile(replicatedPrices.max, probs = 0.95) ])
+abline(v = max(estimationSet$Price[estimationSet$Price <= quantile(estimationSet$Price, probs = 0.95) ]), col = 'red', lwd = 1, lty = 2)
+
+replicatedPrices.min <- apply(dataReplications, 1, min);
+summary(replicatedPrices.min)
+hist(replicatedPrices.min)
+hist(replicatedPrices.min[replicatedPrices.min >= quantile(replicatedPrices.min, probs = 0.05) ])
+abline(v = min(estimationSet$Price), col = 'red', lwd = 1, lty = 2)
+
+replicatedPrices.mean <- apply(dataReplications, 1, mean);
+summary(replicatedPrices.mean)
+hist(replicatedPrices.mean)
+abline(v = mean(estimationSet$Price), col = 'red', lwd = 1, lty = 2)
+
+replicatedPrices.median <- apply(dataReplications, 1, median);
+summary(replicatedPrices.median)
+hist(replicatedPrices.median)
+abline(v = median(estimationSet$Price), col = 'red', lwd = 1, lty = 2)
+# median not in the graph... 
+
+replicatedPrices.sd <- apply(dataReplications, 1, sd);
+summary(replicatedPrices.sd)
+hist(replicatedPrices.sd)
+abline(v = sd(estimationSet$Price), col = 'red', lwd = 1, lty = 2)
+
+############################################################################################################
 
 # estimation set means
 postPredDistDraws.estimation <- getPosteriorPredictiveDraws(dataSet = estimationSet, 

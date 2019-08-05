@@ -15,6 +15,10 @@ distanceMatrixData <- read.csv("distanceMatrix.csv") # for distance metrics for 
 combinedData.orig <- combinedData.orig[combinedData.orig$NeighborhoodFinalized != "Kalajärvi",]; 
 nrow(combinedData.orig)
 
+# alppila renamed to "alppiharju"
+combinedData.orig$NeighborhoodFinalized[combinedData.orig$NeighborhoodFinalized == "Alppila"] <- "Alppiharju";
+combinedData.orig$NeighborhoodFinalized <- factor(combinedData.orig$NeighborhoodFinalized);
+
 # renaming and transforming the variables for EV calculations
 combinedData <- data.frame(Price = combinedData.orig$Price, 
                            Sqm = combinedData.orig$SquareMeters,
@@ -27,10 +31,8 @@ combinedData <- data.frame(Price = combinedData.orig$Price,
                            SaunaDummy = combinedData.orig$SaunaDummy,
                            NeighborhoodFinalized = combinedData.orig$NeighborhoodFinalized);
 
-combinedData$NeighborhoodFinalized[combinedData$NeighborhoodFinalized == "Alppila"] <- "Alppiharju";
-
 combinedData$NeighborhoodFinalized <- factor(combinedData$NeighborhoodFinalized); 
-combinedData$NeighborhoodId <- as.numeric(combinedData$NeighborhoodFinalized); 
+combinedData$NeighborhoodAssignment <- as.numeric(combinedData$NeighborhoodFinalized); 
 
 ################################################
 # preparing distance data for the covariance structure
@@ -39,10 +41,10 @@ library(hash);
 distanceIdHashNameToId <- hash(keys = tolower(oceanRoadDistanceData$nimiYhd), 
                                values = oceanRoadDistanceData$idYhd)
 
-combinedData.hashDf <- unique(combinedData[,c("NeighborhoodId", "NeighborhoodFinalized")])
+combinedData.hashDf <- unique(combinedData[,c("NeighborhoodAssignment", "NeighborhoodFinalized")])
 
 combinedDataIdHashNameToId <- hash(keys = tolower(combinedData.hashDf$NeighborhoodFinalized), 
-                                   values = combinedData.hashDf$NeighborhoodId)
+                                   values = combinedData.hashDf$NeighborhoodAssignment)
 
 idMapping <- data.frame(originalName = tolower(combinedData$NeighborhoodFinalized), 
                         originalId = sapply(tolower(combinedData$NeighborhoodFinalized), function(x) combinedDataIdHashNameToId[[x]]),
@@ -212,42 +214,42 @@ traceplot(stanFit.fakeData)
 posteriorSamples.fakeData <- as.matrix(stanFit.fakeData)
 
 # checking that mass actually concentrates around the true values... 
-trueValues <- c(Sqm_coef,
-                CondGoodDummySqm_coef,
-                Age_coef,
-                TwoRoomsDummy_coef,
-                ThreeRoomsDummy_coef,
-                FourRoomsOrMoreDummy_coef,
-                SaunaDummy_coef,
-                OwnFloor_coef,
-                rhosq,
-                etasq,
-                sigma,
-                nu)
-names(trueValues) <- c("Sqm_coef",
-                       "CondGoodDummySqm_coef",
-                       "Age_coef",
-                       "TwoRoomsDummy_coef",
-                       "ThreeRoomsDummy_coef",
-                       "FourRoomsOrMoreDummy_coef",
-                       "SaunaDummy_coef",
-                       "OwnFloor_coef",
-                       "rhosq",
-                       "etasq",
-                       "sigma",
-                       "nu")
 
-for(k in 1:length(trueValues)) {
-  hist(posteriorSamples.fakeData[,names(trueValues)[k]], main = names(trueValues)[k])
-  cat("parameter", names(trueValues)[k], "value", trueValues[k], "\n")
-  abline(v = trueValues[k], col = 'red', lty = 2, lwd = 2)
-  checkEnd <- readline(prompt = "q to end: "); 
-  
-  if(checkEnd == 'q') {
-    break; 
-  }
-}
-
+# trueValues <- c(Sqm_coef,
+#                 CondGoodDummySqm_coef,
+#                 Age_coef,
+#                 TwoRoomsDummy_coef,
+#                 ThreeRoomsDummy_coef,
+#                 FourRoomsOrMoreDummy_coef,
+#                 SaunaDummy_coef,
+#                 OwnFloor_coef,
+#                 rhosq,
+#                 etasq,
+#                 sigma,
+#                 nu)
+# names(trueValues) <- c("Sqm_coef",
+#                        "CondGoodDummySqm_coef",
+#                        "Age_coef",
+#                        "TwoRoomsDummy_coef",
+#                        "ThreeRoomsDummy_coef",
+#                        "FourRoomsOrMoreDummy_coef",
+#                        "SaunaDummy_coef",
+#                        "OwnFloor_coef",
+#                        "rhosq",
+#                        "etasq",
+#                        "sigma",
+#                        "nu")
+# 
+# for(k in 1:length(trueValues)) {
+#   hist(posteriorSamples.fakeData[,names(trueValues)[k]], main = names(trueValues)[k])
+#   cat("parameter", names(trueValues)[k], "value", trueValues[k], "\n")
+#   abline(v = trueValues[k], col = 'red', lty = 2, lwd = 2)
+#   checkEnd <- readline(prompt = "q to end: "); 
+#   
+#   if(checkEnd == 'q') {
+#     break; 
+#   }
+# }
 
 # checking loo statistics
 library(loo)
@@ -257,7 +259,7 @@ looObj.fakeData
 ############################################################################################
 
 # true data
-set.seed(123); 
+set.seed(9); 
 testSetIndeces <- sample(1:nrow(combinedData.orig), round(0.3*nrow(combinedData.orig)), replace = F)
 
 estimationSet <- combinedData[-testSetIndeces,]
@@ -275,7 +277,7 @@ stanFit.trueData <- sampling(object = model4.stanObj,
                                          FourRoomsOrMoreDummy = estimationSet$FourRoomsOrMoreDummy,
                                          OwnFloor = estimationSet$OwnFloor,
                                          SaunaDummy = estimationSet$SaunaDummy,
-                                         NeighborhoodAssignment = estimationSet$NeighborhoodId,
+                                         NeighborhoodAssignment = estimationSet$NeighborhoodAssignment,
                                          Dmat = limitedDistanceMatrix),
                              iter = 4000,
                              cores = 4,
@@ -292,6 +294,9 @@ posteriorSamples.trueData <- as.matrix(stanFit.trueData)
 looObj.trueData <- loo(stanFit.trueData)
 looObj.trueData
 
+# used for stacking later 
+pointwiseElpdLooVectorForStacking <- looObj.trueData$pointwise[,"elpd_loo"]; 
+
 ############################################################################################################
 # functions for generating poterior predictive functions for model stacking  
 
@@ -306,7 +311,7 @@ getPosteriorPredictiveDraws <- function(dataSet,
   
   # adding the intercepts
   interceptEstimateDraws <- postSample[,grep("intercepts\\[",colnames(postSample))]
-  interceptContribution <- t(interceptEstimateDraws[,dataSet$NeighborhoodId])
+  interceptContribution <- t(interceptEstimateDraws[,dataSet$NeighborhoodAssignment])
   
   # final parameters
   muEstimateDraws <- nonInterceptPredictorContribution + interceptContribution; 
@@ -320,10 +325,72 @@ getPosteriorPredictiveDraws <- function(dataSet,
   return(predictiveDraws)
 }
 
+library(LaplacesDemon) # for the dst-function
+
+evaluatePosteriorPredictive <- function(Price.pointEvaluation,  
+                                        predictiveVariables, 
+                                        postSample, 
+                                        likelihoodSigmaName, 
+                                        likelihoodNuName) {
+  
+  # group intercepts 
+  coefDraws <- postSample[,grep("_coef",colnames(postSample))]
+  muData <- predictiveVariables[,substr(colnames(coefDraws), 1, nchar(colnames(coefDraws))-5)]; 
+  nonInterceptPredictorContribution <- as.matrix(muData) %*% t(as.matrix(coefDraws))
+  
+  # adding the intercepts
+  interceptEstimateDraws <- postSample[,grep("intercepts\\[",colnames(postSample))]
+  interceptContribution <- t(interceptEstimateDraws[,predictiveVariables$NeighborhoodAssignment])
+  
+  # final parameters
+  muEstimateDraws <- nonInterceptPredictorContribution + interceptContribution; 
+  
+  sigmaEstimateDraws <- postSample[,likelihoodSigmaName];
+  nuEstimateDraws <- postSample[,likelihoodNuName];
+  
+  lpd <- dst(x = Price.pointEvaluation, mu = muEstimateDraws, sigma = sigmaEstimateDraws, nu = nuEstimateDraws); 
+  
+  return(mean(lpd));
+}
+
 ############################################################################################################
 # storing posterior draws, loo object, function for drawing from posterior predictice distribution for further use   
 
 save.image("modelFit4.RData");
+
+############################################################################################################
+# replicated price histograms compared to true price histogram   
+
+dataReplications <- getPosteriorPredictiveDraws(dataSet = estimationSet, 
+                                                postSample = posteriorSamples.trueData, 
+                                                likelihoodSigmaName = "sigma", 
+                                                likelihoodNuName = "nu")
+
+replicatedVector <- dataReplications[6,]
+trueVector <- estimationSet$Price;
+
+hist(replicatedVector)
+hist(trueVector)
+
+hist(replicatedVector[replicatedVector >= quantile(replicatedVector, probs = 0.05) & replicatedVector <= quantile(replicatedVector, probs = 0.95)]);
+hist(trueVector[trueVector >= quantile(trueVector, probs = 0.05) & trueVector <= quantile(trueVector, probs = 0.95)])
+
+# distribution of mean, median, standard deviation of  prices  
+
+replicatedPrices.mean <- apply(dataReplications, 1, mean);
+summary(replicatedPrices.mean)
+hist(replicatedPrices.mean)
+abline(v = mean(estimationSet$Price), col = 'red', lwd = 1, lty = 2)
+
+replicatedPrices.median <- apply(dataReplications, 1, median);
+summary(replicatedPrices.median)
+hist(replicatedPrices.median)
+abline(v = median(estimationSet$Price), col = 'red', lwd = 1, lty = 2)
+
+replicatedPrices.sd <- apply(dataReplications, 1, sd);
+summary(replicatedPrices.sd)
+hist(replicatedPrices.sd)
+abline(v = sd(estimationSet$Price), col = 'red', lwd = 1, lty = 2)
 
 ############################################################################################################
 

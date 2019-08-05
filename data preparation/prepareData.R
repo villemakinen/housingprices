@@ -268,7 +268,7 @@ neighborHoodKey <- hash(keys = c('not recorded',
                                  'leppävaara',
                                  'leppävaara / vallikallio',
                                  'lepp�vaara',
-                                 'lepp�vaara, puustellinm�ki',
+                                 'lepp�vaara, puustellinm�ki',0
                                  'lintulahti',
                                  'lintuvaara',
                                  'lippajärvi',
@@ -1034,15 +1034,8 @@ for(k in 1:length(levels(combinedData$NeighborhoodFinalized))) {
 
 
 
-
-
 ##################################################
+# saving the data
+
 write.csv2(combinedData, "finalizedData29122018.csv")
 
-set.seed(123)
-estimationIndeces <- sample(x = 1:nrow(combinedData), size = round(0.7*nrow(combinedData)), replace = F); 
-estimationData <- combinedData[estimationIndeces,]
-testingData <- combinedData[-estimationIndeces,]
-
-write.csv2(estimationData, "estimationData29122018.csv")
-write.csv2(testingData, "testingDataData29122018.csv")

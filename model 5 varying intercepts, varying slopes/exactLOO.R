@@ -81,7 +81,6 @@ for(singleIndex in problemIndexes) {
                                            seed = 1234);
   
   # calculating the elpd contribution for the problematic points 
-  
   calculated_lpd_loo <- calculateLPDContribution(stanFit = stanFit.trueData.minusI, 
                                                  leftOutObservation = estimationSet[singleIndex,]);
   
@@ -104,4 +103,7 @@ psisLooPlus.pointwiseELPD[problemIndexes] <- unlist(resultList)
 
 sum(psisLooPlus.pointwiseELPD)
 
- 
+# used for stacking later 
+pointwiseElpdLooVectorForStacking <- psisLooPlus.pointwiseELPD; 
+
+save.image("PSISLOOfix.RData");
