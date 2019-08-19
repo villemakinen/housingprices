@@ -268,7 +268,7 @@ neighborHoodKey <- hash(keys = c('not recorded',
                                  'leppävaara',
                                  'leppävaara / vallikallio',
                                  'lepp�vaara',
-                                 'lepp�vaara, puustellinm�ki',0
+                                 'lepp�vaara, puustellinm�ki',
                                  'lintulahti',
                                  'lintuvaara',
                                  'lippajärvi',

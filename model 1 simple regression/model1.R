@@ -245,51 +245,208 @@ save.image("modelFit1.RData");
 ############################################################################################################
 # replicated price histograms compared to true price histogram   
 
+set.seed(123); 
+
 dataReplications <- getPosteriorPredictiveDraws(dataSet = estimationSet, 
                                                 postSample = posteriorSamples.trueData, 
                                                 likelihoodSigmaName = "sigma", 
                                                 likelihoodNuName = "nu")
 
-replicatedVector <- dataReplications[61,]
-trueVector <- estimationSet$Price;
 
-hist(replicatedVector)
-hist(trueVector)
 
-hist(replicatedVector[replicatedVector >= quantile(replicatedVector, probs = 0.05) & replicatedVector <= quantile(replicatedVector, probs = 0.95)], main = 'Replicated');
-hist(trueVector[trueVector >= quantile(trueVector, probs = 0.05) & trueVector <= quantile(trueVector, probs = 0.95)], main = 'True')
+# distribution of mean, median of replicated prices
 
-# distribution of mean, median, standard deviation of  prices  
+scalingCoef <- 0.9;  
+dir.create('./figures')
 
+png('./figures/model1replicatedMeans.png', width = 600*scalingCoef, height = 400*scalingCoef)
 replicatedPrices.mean <- apply(dataReplications, 1, mean);
-summary(replicatedPrices.mean)
-hist(replicatedPrices.mean)
+range.mean <- range(replicatedPrices.mean)
+hist(replicatedPrices.mean, 
+     xlim = c(range.mean[1]*0.99, range.mean[2]*1.01),
+     xlab = "Mean", 
+     main = "Replicated means")
 abline(v = mean(estimationSet$Price), col = 'red', lwd = 1, lty = 2)
+abline(h = 0)
+dev.off()
 
+png('./figures/model1replicatedMedians.png', width = 600*scalingCoef, height = 400*scalingCoef)
 replicatedPrices.median <- apply(dataReplications, 1, median);
-summary(replicatedPrices.median)
-hist(replicatedPrices.median)
+range.median <- range(replicatedPrices.median)
+hist(replicatedPrices.median,
+     xlim = c(range.median[1]*0.98, range.median[2]*1.02),
+     xlab = "Median",
+     main = "Replicated medians")
 abline(v = median(estimationSet$Price), col = 'red', lwd = 1, lty = 2)
-# median not in the graph... 
+abline(h = 0)
+dev.off()
 
-replicatedPrices.sd <- apply(dataReplications, 1, sd);
-summary(replicatedPrices.sd)
-hist(replicatedPrices.sd)
-abline(v = sd(estimationSet$Price), col = 'red', lwd = 1, lty = 2)
+############################################################################################################
+# average price per neighborhood
+
+estimationSetNeighborhoods <- combinedData.orig$NeighborhoodFinalized[-testSetIndeces]
+
+replicatedMeansPerNeighborhood <- apply(X = dataReplications, 
+                                        MARGIN = 1, 
+                                        FUN = function(rivi) tapply(X = rivi, INDEX = estimationSetNeighborhoods, mean))
+
+estimationSetMeansPerNeighborhood <- tapply(X = estimationSet$Price, INDEX = estimationSetNeighborhoods, mean)
+sampleSizePerNeighborhood <- tapply(X = estimationSet$Price, INDEX = estimationSetNeighborhoods, length)
+
+neighborhoodNames <- names(estimationSetMeansPerNeighborhood); 
+
+# for(k in 1:nrow(replicatedMeansPerNeighborhood)) {
+#   replicatedMeans <- replicatedMeansPerNeighborhood[k,]
+# 
+#   replicatedMeans.cens <- replicatedMeans[replicatedMeans > quantile(replicatedMeans, probs = 0.01) & replicatedMeans < quantile(replicatedMeans, probs = 0.99)]
+# 
+#   plottingRanges <- range(replicatedMeans.cens)
+# 
+#   if(estimationSetMeansPerNeighborhood[k] < plottingRanges[1]) {
+#     plottingRanges[1] <- estimationSetMeansPerNeighborhood[k];
+#   } else if(estimationSetMeansPerNeighborhood[k] > plottingRanges[2]) {
+#     plottingRanges[2] <- estimationSetMeansPerNeighborhood[k];
+#   }
+# 
+#   hist(replicatedMeans.cens,
+#        main = paste(neighborhoodNames[k],", n. obs.: ", sampleSizePerNeighborhood[k], "\nsmallest and largest 1 % values removed", sep =""),
+#        xlim = plottingRanges,
+#        xlab = "replicated mean")
+#   abline(h=0)
+#   abline(v = estimationSetMeansPerNeighborhood[k], col = 'red', lwd = 2, lty = 2)
+# 
+#   checkEnd <- readline(prompt = "q to end: ");
+# 
+#   if(checkEnd == 'q') {
+#     break;
+#   }
+# }
+
+# plotting 5 best and worst neighborhoods, difference measured by  
+averageOfReplications <- apply(replicatedMeansPerNeighborhood, 1, mean)
+
+worst3names <- names(sort(abs(averageOfReplications - estimationSetMeansPerNeighborhood), decreasing = T)[1:3])
+best3names <- names(sort(abs(averageOfReplications - estimationSetMeansPerNeighborhood), decreasing = F)[1:3])
+
+plotMeanHistogram <- function(name) {
+  replicatedMeans <- replicatedMeansPerNeighborhood[name,]
+  
+  replicatedMeans.cens <- replicatedMeans[replicatedMeans > quantile(replicatedMeans, probs = 0.01) & replicatedMeans < quantile(replicatedMeans, probs = 0.99)]
+  
+  plottingRanges <- range(replicatedMeans.cens)
+  
+  if(estimationSetMeansPerNeighborhood[name] < plottingRanges[1]) {
+    plottingRanges[1] <- estimationSetMeansPerNeighborhood[name];
+  } else if(estimationSetMeansPerNeighborhood[name] > plottingRanges[2]) {
+    plottingRanges[2] <- estimationSetMeansPerNeighborhood[name];
+  }
+  
+  hist(replicatedMeans.cens, 
+       main = paste(name,", n. obs.: ", sampleSizePerNeighborhood[name], "\nleft-most, right-most 1 % values truncated", sep =""),
+       xlim = plottingRanges, 
+       xlab = "replicated mean")
+  abline(h=0)
+  abline(v = estimationSetMeansPerNeighborhood[name], col = 'red', lwd = 2, lty = 2)
+}
+
+
+scalingCoef <- 1.3;  
+
+png('./figures/model1neighborhoodMeans.png', width = 600*scalingCoef, height = 400*scalingCoef)
+
+par(mfrow=c(2,3))
+for(x in worst3names) { plotMeanHistogram(x); }
+for(x in best3names) { plotMeanHistogram(x); }
+par(mfrow=c(1,1))
+
+dev.off()
+
+
+############################################################################################################
+# R-hats and effective samples sizes 
+
+rHatNEfftable <- summary(stanFit.trueData)$summary
+rHatNEfftable <- rHatNEfftable[-grep("log_lik", rownames(rHatNEfftable)),]
+rHatNEfftable <- rHatNEfftable[-grep("lp__", rownames(rHatNEfftable)),]
+
+library(xtable)
+
+# se_mean = sd/sqrt(n_eff)
+
+rHatNEfftable <- rHatNEfftable[,c("mean", "sd", "2.5%", "50%", "97.5%", "n_eff", "Rhat")] 
+
+xtable(rHatNEfftable)
+
+############################################################################################################
+# predictive distribution samples
+
+# estimation set draws from predictive distribution
+postPredDistDraws.estimation <- getPosteriorPredictiveDraws(dataSet = estimationSet,
+                                                            postSample = posteriorSamples.trueData,
+                                                            likelihoodSigmaName = "sigma",
+                                                            likelihoodNuName = "nu")
+
+
+# test set draws from predictive distribution
+postPredDistDraws.test <- getPosteriorPredictiveDraws(dataSet = testSet,
+                                                      postSample = posteriorSamples.trueData,
+                                                      likelihoodSigmaName = "sigma",
+                                                      likelihoodNuName = "nu")
+
+############################################################################################################
+# PIT histograms
+
+PITsample.estimation <- sapply(1:nrow(estimationSet), function(k) mean(postPredDistDraws.estimation[,k] <= estimationSet$Price[k]))
+
+scalingCoef <- 1.3;  
+png('./figures/model1EstimationSetPIT.png', width = 600*scalingCoef, height = 400*scalingCoef)
+hist(PITsample.estimation, 
+     xlab = "Probability Integral Transform", 
+     main = "PIT histogram, estimation set, model 1",
+     probability = T)
+
+
+# PITsample.test <- sapply(1:nrow(testSet), function(k) mean(postPredDistDraws.test[,k] <= testSet$Price[k]))
+# hist(PITsample.test)
+
+############################################################################################################
+# sharpness box plots following Gneiting, Balabdaoui, Raftery 2007
+
+# sharpness measured by the width of credible intervals with (5 %, 95 %)-cut 
+
+credibleIntervalWidths.90.estimation <- apply(X = postPredDistDraws.estimation, 
+                                              MARGIN = 2, 
+                                              function(otos) quantile(x = otos, probs =  0.95) - quantile(x = otos, probs =  0.05));
+
+credibleIntervalWidths.50.estimation <- apply(X = postPredDistDraws.estimation, 
+                                              MARGIN = 2, 
+                                              function(otos) quantile(x = otos, probs =  0.75) - quantile(x = otos, probs =  0.25));
+
+scalingCoef <- 1.3; 
+png('./figures/model1EstimationSet90CredIntSharpnessBoxplot.png', width = 600*scalingCoef, height = 400*scalingCoef);  
+boxplot(credibleIntervalWidths.90.estimation, outline=F)
+dev.off();
+
+png('./figures/model1EstimationSet50CredIntSharpnessBoxplot.png', width = 600*scalingCoef, height = 400*scalingCoef); 
+boxplot(credibleIntervalWidths.50.estimation, outline=F)
+dev.off(); 
 
 ############################################################################################################
 # graphing means  
 
-# estimation set means
-postPredDistDraws.estimation <- getPosteriorPredictiveDraws(dataSet = estimationSet, 
-                                                            postSample = posteriorSamples.trueData, 
-                                                            likelihoodSigmaName = "sigma", 
-                                                            likelihoodNuName = "nu")
-
 predDistMean.estimation <- apply(postPredDistDraws.estimation, MARGIN = 2, mean)
 
-plot(estimationSet$Price, predDistMean.estimation)
+
+scalingCoef <- 1.3; 
+png('./figures/model1EstimationSetMeanPredScatter.png', width = 600*scalingCoef, height = 400*scalingCoef);  
+plot(estimationSet$Price, 
+     predDistMean.estimation,
+     xlab = "true price", 
+     ylab = "mean of price predictive distribution",
+     main = "True price vs. mean of predictive distributions\nestimation set")
 abline(a = 0, b = 1, lty = 2, col = 'red')
+dev.off();
+
 
 # largDifIndeces.estimation <- order(abs(estimationSet$Price - predDistMean.estimation), decreasing = T);
 # k <- 5; 
@@ -297,13 +454,17 @@ abline(a = 0, b = 1, lty = 2, col = 'red')
 # hist(postPredDistDraws.estimation[,targetIndex], nclass = 50)
 # abline(v = estimationSet$Price[targetIndex], col = 'red', lty = 2);
 
-# test set means 
-postPredDistDraws.test <- getPosteriorPredictiveDraws(dataSet = testSet, postSample = posteriorSamples.trueData, likelihoodSigmaName = "sigma", likelihoodNuName = "nu")
-
 predDistMean.test <- apply(postPredDistDraws.test, MARGIN = 2, mean)
 
-plot(testSet$Price, predDistMean.test)
+scalingCoef <- 1.3; 
+png('./figures/model1TestSetMeanPredScatter.png', width = 600*scalingCoef, height = 400*scalingCoef);  
+plot(testSet$Price, 
+     predDistMean.test,
+     xlab = "true price", 
+     ylab = "mean of price predictive distribution",
+     main = "True price vs. mean of predictive distributions\ntest set")
 abline(a = 0, b = 1, lty = 2, col = 'red')
+dev.off();
 
 # largDifIndeces.test <- order(abs(testSet$Price - predDistMean.test), decreasing = T);
 # k <- 2; 
@@ -311,8 +472,8 @@ abline(a = 0, b = 1, lty = 2, col = 'red')
 # hist(postPredDistDraws.test[,targetIndex], nclass = 50)
 # abline(v = testSet$Price[targetIndex], col = 'red', lty = 2);
 
-########################################################################################################################################################################
-
+#########################################################################################
+# Bayesian R^2(?)
 drawVariancePostSample <- function(postSample, likelihoodSigmaName, likelihoodNuName) {
   sigmaPostSample <- postSample[,likelihoodSigmaName];
   nuPostSample <- postSample[,likelihoodNuName];

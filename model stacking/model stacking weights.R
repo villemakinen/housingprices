@@ -27,6 +27,7 @@ counter <- 1;
 
 listOfPosteriorPredictiveDensities <- list(); 
 listOfPosteriorSamples <- list(); 
+listOfPosteriorPredictiveDistSamplingFunctions <- list();
 
 for(filename in modelFitFilenames) {
   load(filename)
@@ -35,6 +36,7 @@ for(filename in modelFitFilenames) {
 
   listOfPosteriorPredictiveDensities[[counter]] <- evaluatePosteriorPredictive;
   listOfPosteriorSamples[[counter]] <- posteriorSamples.trueData; 
+  listOfPosteriorPredictiveDistSamplingFunctions[[counter]] <- getPosteriorPredictiveDraws;
   
   counter <- counter + 1;   
 }
@@ -76,130 +78,199 @@ evaluatePosteriorPredictive.combined <- function(Price.pointEvaluation,
  return(sum(weights*evaluatedDensities));
 }
 
+###########
+# generating figures for the predictive densities 
 
-library(parallel)
+# library(parallel)
+# 
+# #858
+# for(k in 1:nrow(testSet)) { 
+#   cat("plotting", k, "\n")
+#   predictiveVariables <- testSet[k,] 
+#   # predictiveVariables <-  combinedData[combinedData$NeighborhoodAssignment == 125,]
+#   
+#   priceGrid <- seq(predictiveVariables$Price*0.5, predictiveVariables$Price*1.5, by = 1000);
+#   
+#   densityValues <- mclapply(priceGrid, function(x) evaluatePosteriorPredictive.combined(Price.pointEvaluation = x, 
+#                                                                                       predictiveVariables = predictiveVariables, 
+#                                                                                       posteriorPredictiveDensities_list = listOfPosteriorPredictiveDensities, 
+#                                                                                       postSample_list = listOfPosteriorSamples, 
+#                                                                                       weights = weights, 
+#                                                                                       likelihoodSigmaName = "sigma", 
+#                                                                                       likelihoodNuName = "nu"),
+#                             mc.cores = 4); 
+#   
+#   densityValues <- unlist(densityValues); 
+#   
+#   png(filename = paste('/home/asdf/Desktop/gradu/stacking densities/',k,'.png', sep=""), width = 1000, height = 500)
+#   
+#   plot(priceGrid, 
+#        densityValues, 
+#        type = 'l', 
+#        main = paste("k: ", k, ", neighborhood: ", combinedData.orig$NeighborhoodRaw[as.numeric(rownames(predictiveVariables))], sep = ""))
+#   text(x = 1.025*min(priceGrid), y = max(densityValues) , paste("Sqm = ", predictiveVariables$Sqm, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.95 , paste("CondGoodDummySqm = ", predictiveVariables$CondGoodDummySqm, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.90 , paste("Age = ", predictiveVariables$Age, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.85 , paste("TwoRoomsDummy = ", predictiveVariables$TwoRoomsDummy, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.80 , paste("ThreeRoomsDummy = ", predictiveVariables$ThreeRoomsDummy, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.75 , paste("FourRoomsOrMoreDummy = ", predictiveVariables$FourRoomsOrMoreDummy, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.70 , paste("OwnFloor = ", predictiveVariables$OwnFloor, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.65 , paste("SaunaDummy = ", predictiveVariables$SaunaDummy, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.60 , paste("HouseType = ", combinedData.orig$HouseType[as.numeric(rownames(predictiveVariables))], sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.55 , paste("ApartmentTypeRaw = ", combinedData.orig$ApartmentTypeRaw[as.numeric(rownames(predictiveVariables))], sep = ""), adj = 0)
+#   
+#   abline(v = predictiveVariables$Price, lwd = 2, lty = 2, col = 'red')
+#   abline(v = priceGrid[which.max(densityValues)], lwd = 2, lty = 2, col = 'gray')
+#   dev.off(); 
+# }
+# 
+# 
+# for(k in 1:nrow(testSet)) { 
+#   cat("plotting", k, "\n")
+#   predictiveVariables <- testSet[k,] 
+#   # predictiveVariables <-  combinedData[combinedData$NeighborhoodAssignment == 125,]
+#   
+#   priceGrid <- seq(predictiveVariables$Price*0.5, predictiveVariables$Price*1.5, by = 1000);
+#   
+#   densityValues <- mclapply(priceGrid, function(x) evaluatePosteriorPredictive.combined(Price.pointEvaluation = x, 
+#                                                                                         predictiveVariables = predictiveVariables, 
+#                                                                                         posteriorPredictiveDensities_list = listOfPosteriorPredictiveDensities, 
+#                                                                                         postSample_list = listOfPosteriorSamples, 
+#                                                                                         weights = weights, 
+#                                                                                         likelihoodSigmaName = "sigma", 
+#                                                                                         likelihoodNuName = "nu"),
+#                             mc.cores = 4); 
+#   
+#   densityValues <- unlist(densityValues); 
+#   
+#   png(filename = paste('/home/asdf/Desktop/gradu/stacking densities/test set/',k,'.png', sep=""), width = 1000, height = 500)
+#   
+#   plot(priceGrid, 
+#        densityValues, 
+#        type = 'l', 
+#        main = paste("k: ", k, ", neighborhood: ", combinedData.orig$NeighborhoodRaw[as.numeric(rownames(predictiveVariables))], sep = ""))
+#   text(x = 1.025*min(priceGrid), y = max(densityValues) , paste("Sqm = ", predictiveVariables$Sqm, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.95 , paste("CondGoodDummySqm = ", predictiveVariables$CondGoodDummySqm, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.90 , paste("Age = ", predictiveVariables$Age, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.85 , paste("TwoRoomsDummy = ", predictiveVariables$TwoRoomsDummy, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.80 , paste("ThreeRoomsDummy = ", predictiveVariables$ThreeRoomsDummy, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.75 , paste("FourRoomsOrMoreDummy = ", predictiveVariables$FourRoomsOrMoreDummy, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.70 , paste("OwnFloor = ", predictiveVariables$OwnFloor, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.65 , paste("SaunaDummy = ", predictiveVariables$SaunaDummy, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.60 , paste("HouseType = ", combinedData.orig$HouseType[as.numeric(rownames(predictiveVariables))], sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.55 , paste("ApartmentTypeRaw = ", combinedData.orig$ApartmentTypeRaw[as.numeric(rownames(predictiveVariables))], sep = ""), adj = 0)
+#   
+#   abline(v = predictiveVariables$Price, lwd = 2, lty = 2, col = 'red')
+#   abline(v = priceGrid[which.max(densityValues)], lwd = 2, lty = 2, col = 'gray')
+#   dev.off(); 
+# }
+# 
+# 
+# 
+# for(k in 1:nrow(estimationSet)) { 
+#   cat("plotting", k, "\n")
+#   predictiveVariables <- estimationSet[k,] 
+#   # predictiveVariables <-  combinedData[combinedData$NeighborhoodAssignment == 125,]
+#   
+#   priceGrid <- seq(predictiveVariables$Price*0.5, predictiveVariables$Price*1.5, by = 1000);
+#   
+#   densityValues <- mclapply(priceGrid, function(x) evaluatePosteriorPredictive.combined(Price.pointEvaluation = x, 
+#                                                                                         predictiveVariables = predictiveVariables, 
+#                                                                                         posteriorPredictiveDensities_list = listOfPosteriorPredictiveDensities, 
+#                                                                                         postSample_list = listOfPosteriorSamples, 
+#                                                                                         weights = weights, 
+#                                                                                         likelihoodSigmaName = "sigma", 
+#                                                                                         likelihoodNuName = "nu"),
+#                             mc.cores = 4); 
+#   
+#   densityValues <- unlist(densityValues); 
+#   
+#   png(filename = paste('/home/asdf/Desktop/gradu/stacking densities/estimation set/',k,'.png', sep=""), width = 1000, height = 500)
+#   
+#   plot(priceGrid, 
+#        densityValues, 
+#        type = 'l', 
+#        main = paste("k: ", k, ", neighborhood: ", combinedData.orig$NeighborhoodRaw[as.numeric(rownames(predictiveVariables))], sep = ""))
+#   text(x = 1.025*min(priceGrid), y = max(densityValues) , paste("Sqm = ", predictiveVariables$Sqm, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.95 , paste("CondGoodDummySqm = ", predictiveVariables$CondGoodDummySqm, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.90 , paste("Age = ", predictiveVariables$Age, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.85 , paste("TwoRoomsDummy = ", predictiveVariables$TwoRoomsDummy, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.80 , paste("ThreeRoomsDummy = ", predictiveVariables$ThreeRoomsDummy, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.75 , paste("FourRoomsOrMoreDummy = ", predictiveVariables$FourRoomsOrMoreDummy, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.70 , paste("OwnFloor = ", predictiveVariables$OwnFloor, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.65 , paste("SaunaDummy = ", predictiveVariables$SaunaDummy, sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.60 , paste("HouseType = ", combinedData.orig$HouseType[as.numeric(rownames(predictiveVariables))], sep = ""), adj = 0)
+#   text(x = 1.025*min(priceGrid), y = max(densityValues)*0.55 , paste("ApartmentTypeRaw = ", combinedData.orig$ApartmentTypeRaw[as.numeric(rownames(predictiveVariables))], sep = ""), adj = 0)
+#   
+#   abline(v = predictiveVariables$Price, lwd = 2, lty = 2, col = 'red')
+#   abline(v = priceGrid[which.max(densityValues)], lwd = 2, lty = 2, col = 'gray')
+#   dev.off(); 
+# }
 
-#858
-for(k in 1:nrow(testSet)) { 
-  cat("plotting", k, "\n")
-  predictiveVariables <- testSet[k,] 
-  # predictiveVariables <-  combinedData[combinedData$NeighborhoodAssignment == 125,]
+
+########### 
+# sampling from the stacking distributon 
+
+
+grid <- seq(from = 250000, to = 900000, by = 1000)
+
+densitiesEval <- sapply(grid, function(x) evaluatePosteriorPredictive.combined(Price.pointEvaluation = x, 
+                                     predictiveVariables = testSet[635,], 
+                                     posteriorPredictiveDensities_list = listOfPosteriorPredictiveDensities, 
+                                     postSample_list =  listOfPosteriorSamples, 
+                                     weights = weights, 
+                                     likelihoodSigmaName = "sigma", 
+                                     likelihoodNuName = "nu"))
+
+
+
+sampleSingleDrawFromStackingDistribution <- function(explanatoryVariableData,
+                                           
+                                           stackingWeights, 
+                                           listOfPosteriorPredictiveDistSamplingFunctions,
+                                           listOfPosteriorSamples,
+                                           
+                                           likelihoodSigmaName,
+                                           likelihoodNuName) {
+  # choose distribution to draw from
+  modelIndex <- sample(1:length(stackingWeights), size = 1, prob = stackingWeights);
   
-  priceGrid <- seq(predictiveVariables$Price*0.5, predictiveVariables$Price*1.5, by = 1000);
+  # draw from likelihood using the complete posterior sample   
+  samplingFunction <- listOfPosteriorPredictiveDistSamplingFunctions[[modelIndex]];
+  posteriorSample <- listOfPosteriorSamples[[modelIndex]];
   
-  densityValues <- mclapply(priceGrid, function(x) evaluatePosteriorPredictive.combined(Price.pointEvaluation = x, 
-                                                                                      predictiveVariables = predictiveVariables, 
-                                                                                      posteriorPredictiveDensities_list = listOfPosteriorPredictiveDensities, 
-                                                                                      postSample_list = listOfPosteriorSamples, 
-                                                                                      weights = weights, 
-                                                                                      likelihoodSigmaName = "sigma", 
-                                                                                      likelihoodNuName = "nu"),
-                            mc.cores = 4); 
+  predictiveDistributionDraw <- samplingFunction(dataSet = explanatoryVariableData, 
+                                                 postSample = posteriorSample, 
+                                                 likelihoodSigmaName = likelihoodSigmaName, 
+                                                 likelihoodNuName = likelihoodNuName)
   
-  densityValues <- unlist(densityValues); 
+  # choose one draw from predictiveDistributionDraw to "represent" a realization of the posterior distributions 
+  # for the parameters which is then used for drawing from the likelihood distribution 
+  realizedValue <- sample(x = predictiveDistributionDraw, size = 1)
   
-  png(filename = paste('/home/asdf/Desktop/gradu/stacking densities/',k,'.png', sep=""), width = 1000, height = 500)
-  
-  plot(priceGrid, 
-       densityValues, 
-       type = 'l', 
-       main = paste("k: ", k, ", neighborhood: ", combinedData.orig$NeighborhoodRaw[as.numeric(rownames(predictiveVariables))], sep = ""))
-  text(x = 1.025*min(priceGrid), y = max(densityValues) , paste("Sqm = ", predictiveVariables$Sqm, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.95 , paste("CondGoodDummySqm = ", predictiveVariables$CondGoodDummySqm, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.90 , paste("Age = ", predictiveVariables$Age, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.85 , paste("TwoRoomsDummy = ", predictiveVariables$TwoRoomsDummy, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.80 , paste("ThreeRoomsDummy = ", predictiveVariables$ThreeRoomsDummy, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.75 , paste("FourRoomsOrMoreDummy = ", predictiveVariables$FourRoomsOrMoreDummy, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.70 , paste("OwnFloor = ", predictiveVariables$OwnFloor, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.65 , paste("SaunaDummy = ", predictiveVariables$SaunaDummy, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.60 , paste("HouseType = ", combinedData.orig$HouseType[as.numeric(rownames(predictiveVariables))], sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.55 , paste("ApartmentTypeRaw = ", combinedData.orig$ApartmentTypeRaw[as.numeric(rownames(predictiveVariables))], sep = ""), adj = 0)
-  
-  abline(v = predictiveVariables$Price, lwd = 2, lty = 2, col = 'red')
-  abline(v = priceGrid[which.max(densityValues)], lwd = 2, lty = 2, col = 'gray')
-  dev.off(); 
+  return(realizedValue)
 }
 
 
-for(k in 1:nrow(testSet)) { 
-  cat("plotting", k, "\n")
-  predictiveVariables <- testSet[k,] 
-  # predictiveVariables <-  combinedData[combinedData$NeighborhoodAssignment == 125,]
-  
-  priceGrid <- seq(predictiveVariables$Price*0.5, predictiveVariables$Price*1.5, by = 1000);
-  
-  densityValues <- mclapply(priceGrid, function(x) evaluatePosteriorPredictive.combined(Price.pointEvaluation = x, 
-                                                                                        predictiveVariables = predictiveVariables, 
-                                                                                        posteriorPredictiveDensities_list = listOfPosteriorPredictiveDensities, 
-                                                                                        postSample_list = listOfPosteriorSamples, 
-                                                                                        weights = weights, 
-                                                                                        likelihoodSigmaName = "sigma", 
-                                                                                        likelihoodNuName = "nu"),
-                            mc.cores = 4); 
-  
-  densityValues <- unlist(densityValues); 
-  
-  png(filename = paste('/home/asdf/Desktop/gradu/stacking densities/test set/',k,'.png', sep=""), width = 1000, height = 500)
-  
-  plot(priceGrid, 
-       densityValues, 
-       type = 'l', 
-       main = paste("k: ", k, ", neighborhood: ", combinedData.orig$NeighborhoodRaw[as.numeric(rownames(predictiveVariables))], sep = ""))
-  text(x = 1.025*min(priceGrid), y = max(densityValues) , paste("Sqm = ", predictiveVariables$Sqm, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.95 , paste("CondGoodDummySqm = ", predictiveVariables$CondGoodDummySqm, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.90 , paste("Age = ", predictiveVariables$Age, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.85 , paste("TwoRoomsDummy = ", predictiveVariables$TwoRoomsDummy, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.80 , paste("ThreeRoomsDummy = ", predictiveVariables$ThreeRoomsDummy, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.75 , paste("FourRoomsOrMoreDummy = ", predictiveVariables$FourRoomsOrMoreDummy, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.70 , paste("OwnFloor = ", predictiveVariables$OwnFloor, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.65 , paste("SaunaDummy = ", predictiveVariables$SaunaDummy, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.60 , paste("HouseType = ", combinedData.orig$HouseType[as.numeric(rownames(predictiveVariables))], sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.55 , paste("ApartmentTypeRaw = ", combinedData.orig$ApartmentTypeRaw[as.numeric(rownames(predictiveVariables))], sep = ""), adj = 0)
-  
-  abline(v = predictiveVariables$Price, lwd = 2, lty = 2, col = 'red')
-  abline(v = priceGrid[which.max(densityValues)], lwd = 2, lty = 2, col = 'gray')
-  dev.off(); 
-}
+
+
+stackingPredictiveDistributionSample <- sapply(1:10000, 
+                                               function(x) sampleSingleDrawFromStackingDistribution(explanatoryVariableData = testSet[635,], 
+                                                                                                    stackingWeights = weights, 
+                                                                                                    listOfPosteriorPredictiveDistSamplingFunctions = listOfPosteriorPredictiveDistSamplingFunctions, 
+                                                                                                    listOfPosteriorSamples = listOfPosteriorSamples, likelihoodSigmaName = "sigma", 
+                                                                                                    likelihoodNuName = "nu" ))
 
 
 
-for(k in 1:nrow(estimationSet)) { 
-  cat("plotting", k, "\n")
-  predictiveVariables <- estimationSet[k,] 
-  # predictiveVariables <-  combinedData[combinedData$NeighborhoodAssignment == 125,]
-  
-  priceGrid <- seq(predictiveVariables$Price*0.5, predictiveVariables$Price*1.5, by = 1000);
-  
-  densityValues <- mclapply(priceGrid, function(x) evaluatePosteriorPredictive.combined(Price.pointEvaluation = x, 
-                                                                                        predictiveVariables = predictiveVariables, 
-                                                                                        posteriorPredictiveDensities_list = listOfPosteriorPredictiveDensities, 
-                                                                                        postSample_list = listOfPosteriorSamples, 
-                                                                                        weights = weights, 
-                                                                                        likelihoodSigmaName = "sigma", 
-                                                                                        likelihoodNuName = "nu"),
-                            mc.cores = 4); 
-  
-  densityValues <- unlist(densityValues); 
-  
-  png(filename = paste('/home/asdf/Desktop/gradu/stacking densities/estimation set/',k,'.png', sep=""), width = 1000, height = 500)
-  
-  plot(priceGrid, 
-       densityValues, 
-       type = 'l', 
-       main = paste("k: ", k, ", neighborhood: ", combinedData.orig$NeighborhoodRaw[as.numeric(rownames(predictiveVariables))], sep = ""))
-  text(x = 1.025*min(priceGrid), y = max(densityValues) , paste("Sqm = ", predictiveVariables$Sqm, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.95 , paste("CondGoodDummySqm = ", predictiveVariables$CondGoodDummySqm, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.90 , paste("Age = ", predictiveVariables$Age, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.85 , paste("TwoRoomsDummy = ", predictiveVariables$TwoRoomsDummy, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.80 , paste("ThreeRoomsDummy = ", predictiveVariables$ThreeRoomsDummy, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.75 , paste("FourRoomsOrMoreDummy = ", predictiveVariables$FourRoomsOrMoreDummy, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.70 , paste("OwnFloor = ", predictiveVariables$OwnFloor, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.65 , paste("SaunaDummy = ", predictiveVariables$SaunaDummy, sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.60 , paste("HouseType = ", combinedData.orig$HouseType[as.numeric(rownames(predictiveVariables))], sep = ""), adj = 0)
-  text(x = 1.025*min(priceGrid), y = max(densityValues)*0.55 , paste("ApartmentTypeRaw = ", combinedData.orig$ApartmentTypeRaw[as.numeric(rownames(predictiveVariables))], sep = ""), adj = 0)
-  
-  abline(v = predictiveVariables$Price, lwd = 2, lty = 2, col = 'red')
-  abline(v = priceGrid[which.max(densityValues)], lwd = 2, lty = 2, col = 'gray')
-  dev.off(); 
-}
+par(mfrow=c(2,1)); 
+plot(grid, densitiesEval)
+abline(v=testSet[635,]$Price, col = 'red')
+
+hist(stackingPredictiveDistributionSample, nclass = 500, xlim = range(grid))
+abline(v=testSet[635,]$Price, col = 'red')
+abline(v = mean(stackingPredictiveDistributionSample), col = 'orange', lwd = 2)
+par(mfrow=c(1,1));
+
+
 

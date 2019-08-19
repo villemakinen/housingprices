@@ -90,7 +90,6 @@ for(singleIndex in problemIndexes) {
   k <- k + 1; 
 }
 
-
 # calculating the PSIS-LOO+-version of elpd for model comparison etc. 
 
 looObj.trueData

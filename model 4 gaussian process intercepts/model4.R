@@ -361,6 +361,8 @@ save.image("modelFit4.RData");
 ############################################################################################################
 # replicated price histograms compared to true price histogram   
 
+set.seed(123); 
+
 dataReplications <- getPosteriorPredictiveDraws(dataSet = estimationSet, 
                                                 postSample = posteriorSamples.trueData, 
                                                 likelihoodSigmaName = "sigma", 
@@ -387,19 +389,129 @@ summary(replicatedPrices.median)
 hist(replicatedPrices.median)
 abline(v = median(estimationSet$Price), col = 'red', lwd = 1, lty = 2)
 
-replicatedPrices.sd <- apply(dataReplications, 1, sd);
-summary(replicatedPrices.sd)
-hist(replicatedPrices.sd)
-abline(v = sd(estimationSet$Price), col = 'red', lwd = 1, lty = 2)
+############################################################################################################
+# average price per neighborhood
+
+estimationSetNeighborhoods <- combinedData.orig$NeighborhoodFinalized[-testSetIndeces]
+
+replicatedMeansPerNeighborhood <- apply(X = dataReplications, 
+                                        MARGIN = 1, 
+                                        FUN = function(rivi) tapply(X = rivi, INDEX = estimationSetNeighborhoods, mean))
+
+estimationSetMeansPerNeighborhood <- tapply(X = estimationSet$Price, INDEX = estimationSetNeighborhoods, mean)
+sampleSizePerNeighborhood <- tapply(X = estimationSet$Price, INDEX = estimationSetNeighborhoods, length)
+
+neighborhoodNames <- names(estimationSetMeansPerNeighborhood); 
+
+# for(k in 1:nrow(replicatedMeansPerNeighborhood)) {
+#   replicatedMeans <- replicatedMeansPerNeighborhood[k,]
+#   
+#   replicatedMeans.cens <- replicatedMeans[replicatedMeans > quantile(replicatedMeans, probs = 0.01) & replicatedMeans < quantile(replicatedMeans, probs = 0.99)]
+#   
+#   plottingRanges <- range(replicatedMeans.cens)
+#   
+#   if(estimationSetMeansPerNeighborhood[k] < plottingRanges[1]) {
+#     plottingRanges[1] <- estimationSetMeansPerNeighborhood[k];
+#   } else if(estimationSetMeansPerNeighborhood[k] > plottingRanges[2]) {
+#     plottingRanges[2] <- estimationSetMeansPerNeighborhood[k];
+#   }
+#   
+#   hist(replicatedMeans.cens, 
+#        main = paste(neighborhoodNames[k],", n. obs.: ", sampleSizePerNeighborhood[k], "\nsmallest and largest 1 % values removed", sep =""),
+#        xlim = plottingRanges, 
+#        xlab = "replicated mean")
+#   abline(h=0)
+#   abline(v = estimationSetMeansPerNeighborhood[k], col = 'red', lwd = 2, lty = 2)
+#   
+#   checkEnd <- readline(prompt = "q to end: ");
+#   
+#   if(checkEnd == 'q') {
+#     break;
+#   }
+# }
+
+
+# plotting 5 best and worst neighborhoods, difference measured by  
+averageOfReplications <- apply(replicatedMeansPerNeighborhood, 1, mean)
+
+worst5names <- names(sort(abs(averageOfReplications - estimationSetMeansPerNeighborhood), decreasing = T)[1:5])
+best5names <- names(sort(abs(averageOfReplications - estimationSetMeansPerNeighborhood), decreasing = F)[1:5])
+
+plotMeanHistogram <- function(name) {
+  replicatedMeans <- replicatedMeansPerNeighborhood[name,]
+  
+  replicatedMeans.cens <- replicatedMeans[replicatedMeans > quantile(replicatedMeans, probs = 0.01) & replicatedMeans < quantile(replicatedMeans, probs = 0.99)]
+  
+  plottingRanges <- range(replicatedMeans.cens)
+  
+  if(estimationSetMeansPerNeighborhood[name] < plottingRanges[1]) {
+    plottingRanges[1] <- estimationSetMeansPerNeighborhood[name];
+  } else if(estimationSetMeansPerNeighborhood[name] > plottingRanges[2]) {
+    plottingRanges[2] <- estimationSetMeansPerNeighborhood[name];
+  }
+  
+  hist(replicatedMeans.cens, 
+       main = paste(name,", n. obs.: ", sampleSizePerNeighborhood[name], "\nsmallest and largest 1 % values removed", sep =""),
+       xlim = plottingRanges, 
+       xlab = "replicated mean")
+  abline(h=0)
+  abline(v = estimationSetMeansPerNeighborhood[name], col = 'red', lwd = 2, lty = 2)
+}
+
+par(mfrow=c(2,5))
+for(x in worst5names) { plotMeanHistogram(x); }
+for(x in best5names) { plotMeanHistogram(x); }
+par(mfrow=c(1,1))
+
 
 ############################################################################################################
+# R-hats and effective samples sizes 
 
-# estimation set means
-postPredDistDraws.estimation <- getPosteriorPredictiveDraws(dataSet = estimationSet, 
-                                                            postSample = posteriorSamples.trueData, 
-                                                            likelihoodSigmaName = "sigma", 
+rHatNEfftable <- summary(stanFit.trueData)$summary
+rHatNEfftable <- rHatNEfftable[-grep("log_lik", rownames(rHatNEfftable)),]
+rHatNEfftable <- rHatNEfftable[-grep("lp__", rownames(rHatNEfftable)),]
+
+library(xtable)
+
+xtable(rHatNEfftable)
+
+
+############################################################################################################
+# predictive distribution samples
+
+# estimation set draws from predictive distribution
+postPredDistDraws.estimation <- getPosteriorPredictiveDraws(dataSet = estimationSet,
+                                                            postSample = posteriorSamples.trueData,
+                                                            likelihoodSigmaName = "sigma",
                                                             likelihoodNuName = "nu")
 
+
+# test set draws from predictive distribution
+postPredDistDraws.test <- getPosteriorPredictiveDraws(dataSet = testSet,
+                                                      postSample = posteriorSamples.trueData,
+                                                      likelihoodSigmaName = "sigma",
+                                                      likelihoodNuName = "nu")
+
+############################################################################################################
+# PIT histograms
+
+PITsample.estimation <- sapply(1:nrow(estimationSet), function(k) mean(postPredDistDraws.estimation[,k] <= estimationSet$Price[k]))
+
+scalingCoef <- 1.3;  
+png('./figures/model4EstimationSetPIT.png', width = 600*scalingCoef, height = 400*scalingCoef)
+hist(PITsample.estimation, 
+     xlab = "Probability Integral Transform", 
+     main = "PIT histogram, estimation set, model 1",
+     probability = T)
+dev.off(); 
+
+# PITsample.test <- sapply(1:nrow(testSet), function(k) mean(postPredDistDraws.test[,k] <= testSet$Price[k]))
+# hist(PITsample.test)
+
+############################################################################################################
+# graphing means
+
+# estimation set means
 predDistMean.estimation <- apply(postPredDistDraws.estimation, MARGIN = 2, mean)
 
 plot(estimationSet$Price, predDistMean.estimation)
@@ -407,15 +519,14 @@ abline(a = 0, b = 1, lty = 2, col = 'red')
 
 
 # test set means 
-postPredDistDraws.test <- getPosteriorPredictiveDraws(dataSet = testSet, 
-                                                      postSample = posteriorSamples.trueData, 
-                                                      likelihoodSigmaName = "sigma", 
-                                                      likelihoodNuName = "nu")
-
 predDistMean.test <- apply(postPredDistDraws.test, MARGIN = 2, mean)
 
 plot(testSet$Price, predDistMean.test)
 abline(a = 0, b = 1, lty = 2, col = 'red')
+
+
+############################################################################################################
+# Bayesian R^2
 
 drawVariancePostSample <- function(postSample, likelihoodSigmaName, likelihoodNuName) {
   sigmaPostSample <- postSample[,likelihoodSigmaName];
@@ -431,17 +542,6 @@ variancePostSample <- drawVariancePostSample(postSample = posteriorSamples.trueD
                                              likelihoodNuName = "nu")
 hist(variancePostSample)
 summary(variancePostSample)
-
-
-largDifIndeces.test <- order(abs(testSet$Price - predDistMean.test), decreasing = T);
-
-k <- 16; 
-targetIndex <- largDifIndeces.test[k];
-hist(postPredDistDraws.test[,targetIndex], nclass = 50)
-abline(v = testSet$Price[targetIndex], col = 'red', lty = 2);
-predDistMean.test[targetIndex]
-testSet[targetIndex,]
-
 
 getBayesianR2Draws <- function(postPredictiveDistDraws, residualVarianceDraws) {
   # following (3) and appendix of http://www.stat.columbia.edu/~gelman/research/unpublished/bayes_R2_v3.pdf
