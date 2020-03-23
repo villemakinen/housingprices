@@ -1,5 +1,6 @@
 # housingprices
-Modeling housing prices for a master's thesis
+.R-scripts and Stan programs for a master's thesis from Uni. of Helsinki.
 
-Lorem ipsum
+Use at your own peril. 
+
 
