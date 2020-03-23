@@ -7,6 +7,7 @@ setwd('/home/asdf/Desktop/gradu/git/housingprices/model 1 simple regression/')
 
 rm(list=ls()); gc();
 # load(file = 'modelFit1.RData')
+# looObj.trueData; plot(looObj.trueData); # EV p_loo ~11.2
 
 combinedData.orig <- read.csv2("finalizedData29122018.csv")
 
@@ -252,11 +253,9 @@ dataReplications <- getPosteriorPredictiveDraws(dataSet = estimationSet,
                                                 likelihoodSigmaName = "sigma", 
                                                 likelihoodNuName = "nu")
 
-
-
 # distribution of mean, median of replicated prices
 
-scalingCoef <- 0.9;  
+scalingCoef <- 1.5;  
 dir.create('./figures')
 
 png('./figures/model1replicatedMeans.png', width = 600*scalingCoef, height = 400*scalingCoef)
@@ -282,6 +281,26 @@ abline(h = 0)
 dev.off()
 
 ############################################################################################################
+# residual plot - difficult to produce a good figure..
+
+# residuals  <- sapply(1:length(estimationSet$Price), function(k) dataReplications[,k] - estimationSet$Price[k])
+# 
+# residualPlottingData <- do.call(rbind, lapply(1:ncol(residuals), function(k) cbind(rep(k, length(residuals[,k])), residuals[,k])))
+# 
+# colnames(residualPlottingData) <- c("observation", "residual")
+# 
+# residualPlottingData <- data.frame(residualPlottingData)
+# 
+# library(ggplot2)
+# 
+# index <- 2600; 
+# nObs <- 100; 
+# ggplot(data = residualPlottingData[(index*8000):(index*8000 + nObs*8000),], mapping =  aes( x = as.factor(observation), y = residual)) + 
+#          geom_boxplot(outlier.shape = NA) +
+#          ylim(-300000, 300000)
+
+
+############################################################################################################
 # average price per neighborhood
 
 estimationSetNeighborhoods <- combinedData.orig$NeighborhoodFinalized[-testSetIndeces]
@@ -295,72 +314,52 @@ sampleSizePerNeighborhood <- tapply(X = estimationSet$Price, INDEX = estimationS
 
 neighborhoodNames <- names(estimationSetMeansPerNeighborhood); 
 
-# for(k in 1:nrow(replicatedMeansPerNeighborhood)) {
-#   replicatedMeans <- replicatedMeansPerNeighborhood[k,]
-# 
-#   replicatedMeans.cens <- replicatedMeans[replicatedMeans > quantile(replicatedMeans, probs = 0.01) & replicatedMeans < quantile(replicatedMeans, probs = 0.99)]
-# 
-#   plottingRanges <- range(replicatedMeans.cens)
-# 
-#   if(estimationSetMeansPerNeighborhood[k] < plottingRanges[1]) {
-#     plottingRanges[1] <- estimationSetMeansPerNeighborhood[k];
-#   } else if(estimationSetMeansPerNeighborhood[k] > plottingRanges[2]) {
-#     plottingRanges[2] <- estimationSetMeansPerNeighborhood[k];
-#   }
-# 
-#   hist(replicatedMeans.cens,
-#        main = paste(neighborhoodNames[k],", n. obs.: ", sampleSizePerNeighborhood[k], "\nsmallest and largest 1 % values removed", sep =""),
-#        xlim = plottingRanges,
-#        xlab = "replicated mean")
-#   abline(h=0)
-#   abline(v = estimationSetMeansPerNeighborhood[k], col = 'red', lwd = 2, lty = 2)
-# 
-#   checkEnd <- readline(prompt = "q to end: ");
-# 
-#   if(checkEnd == 'q') {
-#     break;
-#   }
-# }
+library(hash)
+neighborhoodToCityHash <- hash(keys = c('Alppiharju','Askisto','Asola','Eira','Espoon keskus','Espoonlahti','Etu-Töölö','Haaga','Hakunila','Hämeenkylä','Hämevaara','Haukilahti','Havukoski','Henttaa','Hermanni','Herttoniemi','Hiekkaharju','Ilola','Itä-Hakkila','Järvenperä','Jokiniemi','Kaarela','Kaartinkaupunki','Kaitaa','Kaivoksela','Kallio','Kamppi','Käpylä','Karakallio','Karhusuo','Karvasmäki','Katajanokka','Kauklahti','Kaupunginkallio','Keimola','Kilo','Kivistö','Kluuvi','Koivuhaka','Koivukylä','Kolmperä','Konala','Korso','Koskela','Kruununhaka','Kulosaari','Kumpula','Kuninkaala','Kuninkaanmäki','Kuurinniitty','Laajalahti','Laajasalo','Laakso','Laaksolahti','Lahnus','Länsimäki','Länsisatama','Latokaski','Lauttasaari','Leppäkorpi','Leppävaara','Lintuvaara','Lippajärvi','Malmi','Mankkaa','Martinlaakso','Matari','Matinkylä','Meilahti','Mellunkylä','Metsola','Mikkola','Munkkiniemi','Muurala','Myyrmäki','Niipperi','Niittykumpu','Nikinmäki','Nöykkiö','Nupuri','Olari','Otaniemi','Oulunkylä','Päiväkumpu','Pakila','Pakkala','Pasila','Perusmäki','Piispankylä','Pitäjänmäki','Pohjois-Tapiola','Pukinmäki','Punavuori','Rajakylä','Rekola','Ruskeasanta','Ruskeasuo','Saunalahti','Sepänkylä','Simonkylä','Sörnäinen','Soukka','Suurmetsä','Suutarila','Taka-Töölö','Tammisalo','Tammisto','Tapaninkylä','Tapiola','Tikkurila','Toukola','Tuomarinkylä','Ullanlinna','Vaarala','Vallila','Vanhakaupunki','Vantaanlaakso','Vanttila','Vapaala','Varisto','Vartiokylä','Viertola','Vierumäki','Viherlaakso','Viikki','Vuosaari','Westend','Ylästö'),
+                              values = c('Helsinki','Vantaa','Vantaa','Helsinki','Espoo','Espoo','Helsinki','Helsinki','Vantaa','Vantaa','Vantaa','Espoo','Vantaa','Espoo','Helsinki','Helsinki','Vantaa','Vantaa','Vantaa','Espoo','Vantaa','Helsinki','Helsinki','Espoo','Vantaa','Helsinki','Helsinki','Helsinki','Espoo','Espoo','Espoo','Helsinki','Espoo','Espoo','Vantaa','Espoo','Vantaa','Helsinki','Vantaa','Vantaa','Espoo','Helsinki','Vantaa','Helsinki','Helsinki','Helsinki','Helsinki','Vantaa','Vantaa','Espoo','Espoo','Helsinki','Helsinki','Espoo','Espoo','Vantaa','Helsinki','Espoo','Helsinki','Vantaa','Espoo','Espoo','Espoo','Helsinki','Espoo','Vantaa','Vantaa','Espoo','Helsinki','Helsinki','Vantaa','Vantaa','Helsinki','Espoo','Vantaa','Espoo','Espoo','Vantaa','Espoo','Espoo','Espoo','Espoo','Helsinki','Vantaa','Helsinki','Vantaa','Helsinki','Espoo','Vantaa','Helsinki','Espoo','Helsinki','Helsinki','Vantaa','Vantaa','Vantaa','Helsinki','Espoo','Espoo','Vantaa','Helsinki','Espoo','Helsinki','Helsinki','Helsinki','Helsinki','Vantaa','Helsinki','Espoo','Vantaa','Helsinki','Helsinki','Helsinki','Vantaa','Helsinki','Helsinki','Vantaa','Espoo','Vantaa','Vantaa','Helsinki','Vantaa','Vantaa','Espoo','Helsinki','Helsinki','Espoo','Vantaa')) 
 
-# plotting 5 best and worst neighborhoods, difference measured by  
-averageOfReplications <- apply(replicatedMeansPerNeighborhood, 1, mean)
+cityAssignments <- sapply(rownames(replicatedMeansPerNeighborhood), function(x) neighborhoodToCityHash[[x]])
 
-worst3names <- names(sort(abs(averageOfReplications - estimationSetMeansPerNeighborhood), decreasing = T)[1:3])
-best3names <- names(sort(abs(averageOfReplications - estimationSetMeansPerNeighborhood), decreasing = F)[1:3])
+replicatedMeansPerNeighborhood.Helsinki <- replicatedMeansPerNeighborhood[cityAssignments == "Helsinki",]
+replicatedMeansPerNeighborhood.Espoo <- replicatedMeansPerNeighborhood[cityAssignments == "Espoo",]
+replicatedMeansPerNeighborhood.Vantaa <- replicatedMeansPerNeighborhood[cityAssignments == "Vantaa",]
 
-plotMeanHistogram <- function(name) {
-  replicatedMeans <- replicatedMeansPerNeighborhood[name,]
-  
-  replicatedMeans.cens <- replicatedMeans[replicatedMeans > quantile(replicatedMeans, probs = 0.01) & replicatedMeans < quantile(replicatedMeans, probs = 0.99)]
-  
-  plottingRanges <- range(replicatedMeans.cens)
-  
-  if(estimationSetMeansPerNeighborhood[name] < plottingRanges[1]) {
-    plottingRanges[1] <- estimationSetMeansPerNeighborhood[name];
-  } else if(estimationSetMeansPerNeighborhood[name] > plottingRanges[2]) {
-    plottingRanges[2] <- estimationSetMeansPerNeighborhood[name];
-  }
-  
-  hist(replicatedMeans.cens, 
-       main = paste(name,", n. obs.: ", sampleSizePerNeighborhood[name], "\nleft-most, right-most 1 % values truncated", sep =""),
-       xlim = plottingRanges, 
-       xlab = "replicated mean")
-  abline(h=0)
-  abline(v = estimationSetMeansPerNeighborhood[name], col = 'red', lwd = 2, lty = 2)
-}
+observerdMeans.Helsinki <- estimationSetMeansPerNeighborhood[names(estimationSetMeansPerNeighborhood) %in% rownames(replicatedMeansPerNeighborhood.Helsinki)]
+observerdMeans.Espoo <- estimationSetMeansPerNeighborhood[names(estimationSetMeansPerNeighborhood) %in% rownames(replicatedMeansPerNeighborhood.Espoo)]
+observerdMeans.Vantaa <- estimationSetMeansPerNeighborhood[names(estimationSetMeansPerNeighborhood) %in% rownames(replicatedMeansPerNeighborhood.Vantaa)]
 
-
-scalingCoef <- 1.3;  
-
-png('./figures/model1neighborhoodMeans.png', width = 600*scalingCoef, height = 400*scalingCoef)
-
-par(mfrow=c(2,3))
-for(x in worst3names) { plotMeanHistogram(x); }
-for(x in best3names) { plotMeanHistogram(x); }
-par(mfrow=c(1,1))
-
+png('./figures/model1replicatedMeansHelsinki.png', width = 600*scalingCoef, height = 400*scalingCoef)
+par(mar = c(8.1, 5.1, 4.1, 2.1))
+boxplot(t(replicatedMeansPerNeighborhood.Helsinki), outline=F, ylim = c(100000, 750000), axes=F, main = "Neighborhood average prices,\nreplicated data vs. realized value,\nHelsinki")
+points(observerdMeans.Helsinki, col = 'red', pch = 13);
+axis(side = 1, at = 1:nrow(replicatedMeansPerNeighborhood.Helsinki), labels = rownames(replicatedMeansPerNeighborhood.Helsinki), las = 2, pch = 0.8)
+abline(v = 1:nrow(replicatedMeansPerNeighborhood.Helsinki), lty = 3, lwd = 0.5, col = alpha('gray', 0.95))
+axis(side = 2, seq(from = 100000, to = 750000, by = 50000), las = 2)
+par(mar = c(5.1, 4.1, 4.1, 2.1))
 dev.off()
 
+
+png('./figures/model1replicatedMeansEspoo.png', width = 600*scalingCoef, height = 400*scalingCoef)
+par(mar = c(8.1, 5.1, 4.1, 2.1))
+boxplot(t(replicatedMeansPerNeighborhood.Espoo), outline=F, ylim = c(0, 800000), axes=F, main = "Neighborhood average prices,\nreplicated data vs. realized value,\nEspoo")
+points(observerdMeans.Espoo, col = 'red', pch = 13);
+axis(side = 1, at = 1:nrow(replicatedMeansPerNeighborhood.Espoo), labels = rownames(replicatedMeansPerNeighborhood.Espoo), las = 2, pch = 0.8)
+abline(v = 1:nrow(replicatedMeansPerNeighborhood.Espoo), lty = 3, lwd = 0.5, col = alpha('gray', 0.95))
+axis(side = 2, seq(from = 0, to = 800000, by = 50000), las = 2)
+par(mar = c(5.1, 4.1, 4.1, 2.1))
+dev.off()
+
+
+png('./figures/model1replicatedMeansVantaa.png', width = 600*scalingCoef, height = 400*scalingCoef)
+par(mar = c(8.1, 5.1, 4.1, 2.1))
+boxplot(t(replicatedMeansPerNeighborhood.Vantaa), outline=F, ylim = c(-50000, 650000), axes=F, main = "Neighborhood average prices,\nreplicated data vs. realized value,\nVantaa")
+points(observerdMeans.Vantaa, col = 'red', pch = 13);
+axis(side = 1, at = 1:nrow(replicatedMeansPerNeighborhood.Vantaa), labels = rownames(replicatedMeansPerNeighborhood.Vantaa), las = 2, pch = 0.8)
+abline(v = 1:nrow(replicatedMeansPerNeighborhood.Vantaa), lty = 3, lwd = 0.5, col = alpha('gray', 0.95))
+abline(h = 0)
+axis(side = 2, seq(from = -50000, to = 650000, by = 50000), las = 2)
+par(mar = c(5.1, 4.1, 4.1, 2.1))
+dev.off()
 
 ############################################################################################################
 # R-hats and effective samples sizes 
@@ -380,6 +379,8 @@ xtable(rHatNEfftable)
 ############################################################################################################
 # predictive distribution samples
 
+set.seed(123); 
+
 # estimation set draws from predictive distribution
 postPredDistDraws.estimation <- getPosteriorPredictiveDraws(dataSet = estimationSet,
                                                             postSample = posteriorSamples.trueData,
@@ -398,13 +399,12 @@ postPredDistDraws.test <- getPosteriorPredictiveDraws(dataSet = testSet,
 
 PITsample.estimation <- sapply(1:nrow(estimationSet), function(k) mean(postPredDistDraws.estimation[,k] <= estimationSet$Price[k]))
 
-scalingCoef <- 1.3;  
 png('./figures/model1EstimationSetPIT.png', width = 600*scalingCoef, height = 400*scalingCoef)
 hist(PITsample.estimation, 
      xlab = "Probability Integral Transform", 
      main = "PIT histogram, estimation set, model 1",
      probability = T)
-
+dev.off()
 
 # PITsample.test <- sapply(1:nrow(testSet), function(k) mean(postPredDistDraws.test[,k] <= testSet$Price[k]))
 # hist(PITsample.test)
@@ -418,26 +418,33 @@ credibleIntervalWidths.90.estimation <- apply(X = postPredDistDraws.estimation,
                                               MARGIN = 2, 
                                               function(otos) quantile(x = otos, probs =  0.95) - quantile(x = otos, probs =  0.05));
 
-credibleIntervalWidths.50.estimation <- apply(X = postPredDistDraws.estimation, 
-                                              MARGIN = 2, 
-                                              function(otos) quantile(x = otos, probs =  0.75) - quantile(x = otos, probs =  0.25));
+# credibleIntervalWidths.50.estimation <- apply(X = postPredDistDraws.estimation, 
+#                                               MARGIN = 2, 
+#                                               function(otos) quantile(x = otos, probs =  0.75) - quantile(x = otos, probs =  0.25));
+# 
+# scalingCoef <- 1.3; 
+# png('./figures/model1EstimationSet90CredIntSharpnessBoxplot.png', width = 600*scalingCoef, height = 400*scalingCoef);  
+# boxplot(credibleIntervalWidths.90.estimation, outline=F)
+# dev.off();
 
-scalingCoef <- 1.3; 
-png('./figures/model1EstimationSet90CredIntSharpnessBoxplot.png', width = 600*scalingCoef, height = 400*scalingCoef);  
-boxplot(credibleIntervalWidths.90.estimation, outline=F)
+png('./figures/model1EstimationSet90CredIntSharpnessHistogram.png', width = 600*scalingCoef, height = 400*scalingCoef);  
+hist(credibleIntervalWidths.90.estimation, 
+     xlab = "width", 
+     main = "Sharpness histogram, 90 % credible interval width, model 1")
+abline(h=0)
 dev.off();
+mean(credibleIntervalWidths.90.estimation)
 
-png('./figures/model1EstimationSet50CredIntSharpnessBoxplot.png', width = 600*scalingCoef, height = 400*scalingCoef); 
-boxplot(credibleIntervalWidths.50.estimation, outline=F)
-dev.off(); 
+
+# png('./figures/model1EstimationSet50CredIntSharpnessBoxplot.png', width = 600*scalingCoef, height = 400*scalingCoef); 
+# boxplot(credibleIntervalWidths.50.estimation, outline=F)
+# dev.off(); 
 
 ############################################################################################################
 # graphing means  
 
 predDistMean.estimation <- apply(postPredDistDraws.estimation, MARGIN = 2, mean)
 
-
-scalingCoef <- 1.3; 
 png('./figures/model1EstimationSetMeanPredScatter.png', width = 600*scalingCoef, height = 400*scalingCoef);  
 plot(estimationSet$Price, 
      predDistMean.estimation,
@@ -446,6 +453,8 @@ plot(estimationSet$Price,
      main = "True price vs. mean of predictive distributions\nestimation set")
 abline(a = 0, b = 1, lty = 2, col = 'red')
 dev.off();
+
+1- sum((estimationSet$Price -predDistMean.estimation)^2)/sum((estimationSet$Price-mean(estimationSet$Price))^2) 
 
 
 # largDifIndeces.estimation <- order(abs(estimationSet$Price - predDistMean.estimation), decreasing = T);
@@ -456,50 +465,97 @@ dev.off();
 
 predDistMean.test <- apply(postPredDistDraws.test, MARGIN = 2, mean)
 
-scalingCoef <- 1.3; 
+largDifIndeces.test <- order((testSet$Price - predDistMean.test)^2, decreasing = T);
+
 png('./figures/model1TestSetMeanPredScatter.png', width = 600*scalingCoef, height = 400*scalingCoef);  
+problematicObservations <- largDifIndeces.test[1:9]
+cat(problematicObservations) # to be used for labeling for other models 
+# 259 1290 225 118 518 443 708 200 63
 plot(testSet$Price, 
      predDistMean.test,
      xlab = "true price", 
      ylab = "mean of price predictive distribution",
      main = "True price vs. mean of predictive distributions\ntest set")
 abline(a = 0, b = 1, lty = 2, col = 'red')
+with(testSet[problematicObservations,], text(testSet$Price[problematicObservations], 
+                                             predDistMean.test[problematicObservations],
+                                             labels = rownames(testSet)[problematicObservations],
+                                             pos = 1, 
+                                             cex = 0.8))
 dev.off();
 
-# largDifIndeces.test <- order(abs(testSet$Price - predDistMean.test), decreasing = T);
-# k <- 2; 
+1 - sum((testSet$Price - predDistMean.test)^2)/sum((testSet$Price-mean(testSet$Price))^2) 
+
+
+# k <- 7;
 # targetIndex <- largDifIndeces.test[k];
 # hist(postPredDistDraws.test[,targetIndex], nclass = 50)
 # abline(v = testSet$Price[targetIndex], col = 'red', lty = 2);
 
 #########################################################################################
+# difficult test set observations, predictive distributions histograms 
+
+testSetDifficultObsIndeces <- c(259, 1290, 225, 118, 518, 443, 708, 200, 63)
+
+png('./figures/model1TestSetProblemObservations.png', width = 600*scalingCoef, height = 400*scalingCoef);  
+par(mfrow=c(3,3)); 
+for(testSetIndex in testSetDifficultObsIndeces) {
+  valueVector <- postPredDistDraws.test[,testSetIndex];
+  
+  # removing 0.5 % extreme values from both sides
+  valueVector <- valueVector[valueVector <= quantile(valueVector, probs = 1 - 0.005) & valueVector >= quantile(valueVector, probs = 0.005)]
+
+  truePrice <- testSet$Price[testSetIndex]
+  
+  xlim.histogram <- range(valueVector)
+  if(xlim.histogram[1] > truePrice) {
+    xlim.histogram[1] <- truePrice
+  } else if(xlim.histogram[2] < truePrice) {
+    xlim.histogram[2] <- truePrice;
+  }
+  
+  xlim.histogram[1] <- xlim.histogram[1] - 1000; 
+  xlim.histogram[2] <- xlim.histogram[2] + 1000; 
+  
+  hist(valueVector, 
+       xlim = xlim.histogram,
+       main = paste("observation", rownames(testSet)[testSetIndex]),
+       probability = T,
+       xlab = "Price");
+  abline(v = truePrice, lty = 2, col = 'red')
+  abline(h=0);
+}
+par(mfrow=c(1,1)); 
+dev.off();
+
+#########################################################################################
 # Bayesian R^2(?)
-drawVariancePostSample <- function(postSample, likelihoodSigmaName, likelihoodNuName) {
-  sigmaPostSample <- postSample[,likelihoodSigmaName];
-  nuPostSample <- postSample[,likelihoodNuName];
-  
-  varSample <- (sigmaPostSample^2) * (nuPostSample/(nuPostSample-2));
-  
-  return(varSample); 
-}
-
-variancePostSample <- drawVariancePostSample(postSample = posteriorSamples.trueData, likelihoodSigmaName = "sigma", likelihoodNuName = "nu")
-hist(variancePostSample)
-summary(variancePostSample)
-
-# - LOO R^2, avehtari.github.io/bayes_R2/bayes_R2.html
-# http://www.stat.columbia.edu/~gelman/research/unpublished/bayes_R2_v3.pdf
-
-getBayesianR2Draws <- function(postPredictiveDistDraws, residualVarianceDraws) {
-  # following (3) and appendix of http://www.stat.columbia.edu/~gelman/research/unpublished/bayes_R2_v3.pdf
-  var_fit <- apply(X = postPredictiveDistDraws, MARGIN = 1, FUN = var)
-  return(var_fit/(var_fit + residualVarianceDraws))
-}
-
-BayesianR2Draws <- getBayesianR2Draws(postPredictiveDistDraws = postPredDistDraws.estimation, residualVarianceDraws = variancePostSample);
-hist(BayesianR2Draws); 
-abline(v = median(BayesianR2Draws), lty = 2, col = 'red')
-
+# drawVariancePostSample <- function(postSample, likelihoodSigmaName, likelihoodNuName) {
+#   sigmaPostSample <- postSample[,likelihoodSigmaName];
+#   nuPostSample <- postSample[,likelihoodNuName];
+#   
+#   varSample <- (sigmaPostSample^2) * (nuPostSample/(nuPostSample-2));
+#   
+#   return(varSample); 
+# }
+# 
+# variancePostSample <- drawVariancePostSample(postSample = posteriorSamples.trueData, likelihoodSigmaName = "sigma", likelihoodNuName = "nu")
+# hist(variancePostSample)
+# summary(variancePostSample)
+# 
+# # - LOO R^2, avehtari.github.io/bayes_R2/bayes_R2.html
+# # http://www.stat.columbia.edu/~gelman/research/unpublished/bayes_R2_v3.pdf
+# 
+# getBayesianR2Draws <- function(postPredictiveDistDraws, residualVarianceDraws) {
+#   # following (3) and appendix of http://www.stat.columbia.edu/~gelman/research/unpublished/bayes_R2_v3.pdf
+#   var_fit <- apply(X = postPredictiveDistDraws, MARGIN = 1, FUN = var)
+#   return(var_fit/(var_fit + residualVarianceDraws))
+# }
+# 
+# BayesianR2Draws <- getBayesianR2Draws(postPredictiveDistDraws = postPredDistDraws.estimation, residualVarianceDraws = variancePostSample);
+# hist(BayesianR2Draws); 
+# abline(v = median(BayesianR2Draws), lty = 2, col = 'red')
+# 
 
 
 
