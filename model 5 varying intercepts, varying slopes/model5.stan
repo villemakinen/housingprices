@@ -72,7 +72,7 @@ model{
   /*****************************************************/
   
   // priors for varying intercept, slope
-  Rho ~ lkj_corr( 2 ); //     https://mc-stan.org/docs/2_19/stan-users-guide/multivariate-hierarchical-priors-section.html
+  Rho ~ lkj_corr( 2 ); // https://mc-stan.org/docs/2_19/stan-users-guide/multivariate-hierarchical-priors-section.html
   
   Mu_Intercept_coef ~ normal(50000, 50000); 
   Mu_Sqm_coef ~ normal(4000, 1000);
