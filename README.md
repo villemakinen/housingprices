@@ -3,4 +3,6 @@
 
 Use at your own peril. 
 
+13.3.2021: Stan codes presented here are probably suboptimal, it would be better to use the brms- or rstanarm-packages... 
+
 ville piste ka piste makinen ät gmail piste com
